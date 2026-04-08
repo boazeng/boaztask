@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: boaztask-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: boaztask
+      POSTGRES_USER: boaztask
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-boaztask_secure_2024}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - boaztask-net
+
+  backend:
+    build: ./backend
+    container_name: boaztask-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://boaztask:${DB_PASSWORD:-boaztask_secure_2024}@db:5432/boaztask
+    depends_on:
+      - db
+    networks:
+      - boaztask-net
+
+  frontend:
+    build: ./frontend
+    container_name: boaztask-frontend
+    restart: unless-stopped
+    ports:
+      - "8090:80"
+    depends_on:
+      - backend
+    networks:
+      - boaztask-net
+
+volumes:
+  postgres_data:
+
+networks:
+  boaztask-net:
+    driver: bridge
