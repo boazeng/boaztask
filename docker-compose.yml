@@ -25,6 +25,19 @@ services:
     networks:
       - boaztask-net
 
+  telegram-bot:
+    build: ./backend
+    container_name: boaztask-telegram
+    restart: unless-stopped
+    command: python run_bot.py
+    environment:
+      DATABASE_URL: postgresql://boaztask:${DB_PASSWORD:-boaztask_secure_2024}@db:5432/boaztask
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+    depends_on:
+      - db
+    networks:
+      - boaztask-net
+
   frontend:
     build: ./frontend
     container_name: boaztask-frontend
