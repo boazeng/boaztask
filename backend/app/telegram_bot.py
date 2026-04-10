@@ -1,5 +1,6 @@
 import os
 import asyncio
+from datetime import datetime
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 from telegram.ext import (
@@ -9,6 +10,7 @@ from telegram.ext import (
 
 from .database import SessionLocal
 from .models import Task, UrgencyLevel, TaskStatus
+from .pdf_reports import generate_immediate_report, generate_by_responsible_report
 
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"))
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -21,7 +23,11 @@ URGENCY_MAP = {"1": "דחוף", "2": "גבוה", "3": "בינוני", "4": "נמ
 STATUS_MAP = {"1": "חדש", "2": "בטיפול", "3": "הושלם", "4": "בוטל"}
 
 MAIN_KEYBOARD = ReplyKeyboardMarkup(
-    [["📋 המטלות שלי", "➕ מטלה חדשה"], ["⚡ מטלה מהירה", "📊 סטטיסטיקות"], ["🔍 חיפוש"]],
+    [
+        ["⚡ מטלות מיידיות", "➕ מטלה חדשה"],
+        ["📋 מטלות לפי אחראי", "⚡ מטלה מהירה"],
+        ["🔍 חיפוש"],
+    ],
     resize_keyboard=True,
 )
 
@@ -80,24 +86,48 @@ async def list_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db.close()
 
 
-# ─── Stats ───
-async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# ─── Immediate tasks PDF ───
+async def immediate_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("⏳ מפיק דוח מטלות מיידיות...")
     db = get_db()
     try:
-        total = db.query(Task).count()
-        new = db.query(Task).filter(Task.status == TaskStatus.NEW).count()
-        progress = db.query(Task).filter(Task.status == TaskStatus.IN_PROGRESS).count()
-        done = db.query(Task).filter(Task.status == TaskStatus.COMPLETED).count()
-        urgent = db.query(Task).filter(Task.urgency == UrgencyLevel.URGENT).count()
+        tasks = (
+            db.query(Task)
+            .filter(Task.immediate.is_(True))
+            .filter(Task.status != TaskStatus.COMPLETED)
+            .filter(Task.status != TaskStatus.CANCELLED)
+            .order_by(Task.urgency, Task.created_at.desc())
+            .all()
+        )
+        pdf_bytes = generate_immediate_report(tasks)
+        filename = f"immediate_tasks_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+        await update.message.reply_document(
+            document=pdf_bytes,
+            filename=filename,
+            caption=f"⚡ דוח מטלות מיידיות\nסה\"כ: {len(tasks)} מטלות",
+        )
+    finally:
+        db.close()
 
-        await update.message.reply_text(
-            f"📊 *סטטיסטיקות*\n\n"
-            f"📋 סה\"כ מטלות: *{total}*\n"
-            f"🆕 חדשות: *{new}*\n"
-            f"⏳ בטיפול: *{progress}*\n"
-            f"✅ הושלמו: *{done}*\n"
-            f"🔴 דחופות: *{urgent}*",
-            parse_mode="Markdown",
+
+# ─── Tasks by responsible PDF ───
+async def by_responsible_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("⏳ מפיק דוח מטלות לפי אחראי...")
+    db = get_db()
+    try:
+        tasks = (
+            db.query(Task)
+            .filter(Task.status != TaskStatus.COMPLETED)
+            .filter(Task.status != TaskStatus.CANCELLED)
+            .order_by(Task.category1, Task.created_at.desc())
+            .all()
+        )
+        pdf_bytes = generate_by_responsible_report(tasks)
+        filename = f"tasks_by_responsible_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+        await update.message.reply_document(
+            document=pdf_bytes,
+            filename=filename,
+            caption=f"📋 דוח מטלות לפי אחראי\nסה\"כ: {len(tasks)} מטלות",
         )
     finally:
         db.close()
@@ -415,10 +445,10 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if await handle_search(update, context):
         return
 
-    if text == "📋 המטלות שלי":
-        await list_tasks(update, context)
-    elif text == "📊 סטטיסטיקות":
-        await stats(update, context)
+    if text == "⚡ מטלות מיידיות":
+        await immediate_report(update, context)
+    elif text == "📋 מטלות לפי אחראי":
+        await by_responsible_report(update, context)
     elif text == "🔍 חיפוש":
         await search_prompt(update, context)
     elif text == "➕ מטלה חדשה":
@@ -474,8 +504,8 @@ def run_bot():
     app.add_handler(conv_handler)
     app.add_handler(quick_conv)
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("tasks", list_tasks))
-    app.add_handler(CommandHandler("stats", stats))
+    app.add_handler(CommandHandler("immediate", immediate_report))
+    app.add_handler(CommandHandler("responsible", by_responsible_report))
     app.add_handler(CommandHandler("search", search_prompt))
     app.add_handler(CallbackQueryHandler(button_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))

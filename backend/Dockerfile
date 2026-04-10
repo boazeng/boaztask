@@ -1,5 +1,17 @@
 FROM python:3.12-slim
 
+# System deps for WeasyPrint (PDF generation with Hebrew support)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpango-1.0-0 \
+    libpangoft2-1.0-0 \
+    libharfbuzz0b \
+    libffi-dev \
+    fonts-dejavu-core \
+    fonts-noto-core \
+    fonts-noto-cjk \
+    fonts-noto-color-emoji \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 COPY requirements.txt .
