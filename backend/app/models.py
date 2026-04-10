@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Enum as SAEnum
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, Enum as SAEnum
 from datetime import datetime, timezone
 import enum
 
@@ -30,5 +30,6 @@ class Task(Base):
     category1 = Column(String(100), default="")
     category2 = Column(String(100), default="")
     status = Column(SAEnum(TaskStatus), default=TaskStatus.NEW)
+    immediate = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))

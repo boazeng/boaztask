@@ -12,6 +12,7 @@ class TaskCreate(BaseModel):
     category1: str = ""
     category2: str = ""
     status: TaskStatus = TaskStatus.NEW
+    immediate: bool = False
 
 
 class TaskUpdate(BaseModel):
@@ -22,6 +23,7 @@ class TaskUpdate(BaseModel):
     category1: Optional[str] = None
     category2: Optional[str] = None
     status: Optional[TaskStatus] = None
+    immediate: Optional[bool] = None
 
 
 class TaskResponse(BaseModel):
@@ -33,6 +35,7 @@ class TaskResponse(BaseModel):
     category1: str
     category2: str
     status: TaskStatus
+    immediate: bool
     created_at: datetime
     updated_at: datetime
 

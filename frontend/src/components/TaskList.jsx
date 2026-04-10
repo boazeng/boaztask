@@ -14,7 +14,7 @@ const statusBadge = {
   'בוטל': 'bg-gray-500/20 text-gray-400',
 }
 
-export default function TaskList({ tasks, onEdit, onDelete, onView }) {
+export default function TaskList({ tasks, onEdit, onDelete, onView, onToggleImmediate }) {
   if (tasks.length === 0) {
     return (
       <div className="bg-gray-900 rounded-xl border border-gray-800 p-12 text-center">
@@ -31,6 +31,7 @@ export default function TaskList({ tasks, onEdit, onDelete, onView }) {
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-800 text-gray-300 text-lg">
+              <th className="text-center px-4 py-3 font-bold">מיידי</th>
               <th className="text-right px-4 py-3 font-bold">נושא</th>
               <th className="text-right px-4 py-3 font-bold">תת נושא</th>
               <th className="text-right px-4 py-3 font-bold">תיאור</th>
@@ -44,6 +45,14 @@ export default function TaskList({ tasks, onEdit, onDelete, onView }) {
           <tbody>
             {tasks.map(task => (
               <tr key={task.id} className="border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors text-lg font-bold">
+                <td className="px-4 py-3 text-center">
+                  <input
+                    type="checkbox"
+                    checked={task.immediate || false}
+                    onChange={(e) => onToggleImmediate?.(task.id, e.target.checked)}
+                    className="w-5 h-5 bg-gray-800 border-2 border-gray-600 rounded text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                  />
+                </td>
                 <td className="px-4 py-3">
                   <button onClick={() => onView(task)} className="text-white hover:text-blue-400 font-bold transition-colors text-right">
                     {task.subject}
@@ -88,10 +97,19 @@ export default function TaskList({ tasks, onEdit, onDelete, onView }) {
       <div className="md:hidden divide-y divide-gray-800">
         {tasks.map(task => (
           <div key={task.id} className="p-4 space-y-2">
-            <div className="flex items-start justify-between">
-              <button onClick={() => onView(task)} className="text-white font-medium hover:text-blue-400">
-                {task.subject}
-              </button>
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-2 flex-1">
+                <input
+                  type="checkbox"
+                  checked={task.immediate || false}
+                  onChange={(e) => onToggleImmediate?.(task.id, e.target.checked)}
+                  className="w-5 h-5 bg-gray-800 border-2 border-gray-600 rounded text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                  title="מיידי"
+                />
+                <button onClick={() => onView(task)} className="text-white font-medium hover:text-blue-400 text-right">
+                  {task.subject}
+                </button>
+              </div>
               <span className={`text-xs px-2 py-1 rounded-full border ${urgencyBadge[task.urgency] || ''}`}>
                 {task.urgency}
               </span>

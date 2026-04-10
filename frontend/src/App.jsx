@@ -9,7 +9,7 @@ import FilterBar from './components/FilterBar'
 import * as api from './api/tasks'
 
 export default function App() {
-  const [view, setView] = useState('dashboard')
+  const [view, setView] = useState('tasks')
   const [tasks, setTasks] = useState([])
   const [stats, setStats] = useState({ total: 0, by_status: {}, by_urgency: {} })
   const [filters, setFilters] = useState({})
@@ -74,6 +74,16 @@ export default function App() {
     }
   }
 
+  const handleToggleImmediate = async (id, immediate) => {
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, immediate } : t))
+    try {
+      await api.updateTask(id, { immediate })
+    } catch {
+      toast.error('שגיאה בעדכון')
+      loadTasks()
+    }
+  }
+
   const handleEdit = (task) => {
     setEditingTask(task)
     setShowForm(true)
@@ -107,6 +117,7 @@ export default function App() {
               onEdit={handleEdit}
               onDelete={handleDelete}
               onView={setViewingTask}
+              onToggleImmediate={handleToggleImmediate}
             />
           </div>
         )}

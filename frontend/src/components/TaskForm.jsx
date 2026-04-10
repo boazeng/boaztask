@@ -13,6 +13,7 @@ export default function TaskForm({ task, onSave, onClose }) {
     category1: '',
     category2: '',
     status: 'חדש',
+    immediate: false,
   })
 
   useEffect(() => {
@@ -25,6 +26,7 @@ export default function TaskForm({ task, onSave, onClose }) {
         category1: task.category1 || '',
         category2: task.category2 || '',
         status: task.status || 'חדש',
+        immediate: task.immediate || false,
       })
     }
   }, [task])
@@ -134,6 +136,19 @@ export default function TaskForm({ task, onSave, onClose }) {
                 placeholder="קטגוריה..."
               />
             </div>
+          </div>
+
+          {/* Immediate checkbox */}
+          <div>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.immediate}
+                onChange={(e) => setForm(prev => ({ ...prev, immediate: e.target.checked }))}
+                className="w-5 h-5 bg-gray-800 border-2 border-gray-600 rounded text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
+              />
+              <span className="text-sm font-medium text-gray-300">מיידי</span>
+            </label>
           </div>
 
           {/* Actions */}
