@@ -6,6 +6,7 @@ import TaskList from './components/TaskList'
 import TaskForm from './components/TaskForm'
 import TaskDetail from './components/TaskDetail'
 import FilterBar from './components/FilterBar'
+import ConfirmDialog from './components/ConfirmDialog'
 import * as api from './api/tasks'
 
 export default function App() {
@@ -16,6 +17,7 @@ export default function App() {
   const [showForm, setShowForm] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
   const [viewingTask, setViewingTask] = useState(null)
+  const [deleteTargetId, setDeleteTargetId] = useState(null)
 
   const loadTasks = useCallback(async () => {
     try {
@@ -62,8 +64,13 @@ export default function App() {
     }
   }
 
-  const handleDelete = async (id) => {
-    if (!confirm('האם אתה בטוח שברצונך למחוק את המטלה?')) return
+  const handleDelete = (id) => {
+    setDeleteTargetId(id)
+  }
+
+  const confirmDelete = async () => {
+    const id = deleteTargetId
+    setDeleteTargetId(null)
     try {
       await api.deleteTask(id)
       toast.success('מטלה נמחקה')
@@ -138,6 +145,16 @@ export default function App() {
           onEdit={handleEdit}
         />
       )}
+
+      <ConfirmDialog
+        open={deleteTargetId !== null}
+        title="מחיקת מטלה"
+        message="האם אתה בטוח שברצונך למחוק את המטלה? לא ניתן יהיה לשחזר אותה."
+        confirmText="מחק"
+        cancelText="ביטול"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTargetId(null)}
+      />
     </>
   )
 }
