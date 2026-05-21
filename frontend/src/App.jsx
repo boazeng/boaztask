@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Toaster, toast } from 'react-hot-toast'
 import Layout from './components/Layout'
 import Dashboard from './components/Dashboard'
@@ -18,6 +18,7 @@ export default function App() {
   const [editingTask, setEditingTask] = useState(null)
   const [viewingTask, setViewingTask] = useState(null)
   const [deleteTargetId, setDeleteTargetId] = useState(null)
+  const [sort, setSort] = useState([])
 
   const loadTasks = useCallback(async () => {
     try {
@@ -45,6 +46,50 @@ export default function App() {
     loadTasks()
     loadStats()
   }, [loadTasks, loadStats])
+
+  const handleSort = (field, addLevel) => {
+    setSort(prev => {
+      const idx = prev.findIndex(s => s.field === field)
+      if (addLevel) {
+        if (idx >= 0) {
+          const next = [...prev]
+          next[idx] = { field, dir: prev[idx].dir === 'asc' ? 'desc' : 'asc' }
+          return next
+        }
+        return [...prev, { field, dir: 'asc' }]
+      }
+      if (prev.length === 1 && prev[0].field === field) {
+        return [{ field, dir: prev[0].dir === 'asc' ? 'desc' : 'asc' }]
+      }
+      return [{ field, dir: 'asc' }]
+    })
+  }
+
+  const sortedTasks = useMemo(() => {
+    if (sort.length === 0) return tasks
+    const URGENCY_ORDER = { 'דחוף': 4, 'גבוה': 3, 'בינוני': 2, 'נמוך': 1 }
+    const STATUS_ORDER = { 'חדש': 1, 'בטיפול': 2, 'הושלם': 3, 'בוטל': 4 }
+    const arr = [...tasks]
+    arr.sort((a, b) => {
+      for (const { field, dir } of sort) {
+        const va = a[field]; const vb = b[field]
+        const aNull = va == null || va === ''
+        const bNull = vb == null || vb === ''
+        if (aNull && bNull) continue
+        if (aNull) return 1
+        if (bNull) return -1
+        let c
+        if (field === 'urgency') c = (URGENCY_ORDER[va] || 0) - (URGENCY_ORDER[vb] || 0)
+        else if (field === 'status') c = (STATUS_ORDER[va] || 0) - (STATUS_ORDER[vb] || 0)
+        else if (field === 'immediate') c = (va ? 1 : 0) - (vb ? 1 : 0)
+        else if (field === 'created_at' || field === 'updated_at') c = new Date(va) - new Date(vb)
+        else c = String(va).localeCompare(String(vb), 'he')
+        if (c !== 0) return dir === 'asc' ? c : -c
+      }
+      return 0
+    })
+    return arr
+  }, [tasks, sort])
 
   const handleSave = async (formData) => {
     try {
@@ -120,11 +165,14 @@ export default function App() {
           <div className="space-y-4">
             <FilterBar filters={filters} onFilterChange={setFilters} />
             <TaskList
-              tasks={tasks}
+              tasks={sortedTasks}
               onEdit={handleEdit}
               onDelete={handleDelete}
               onView={setViewingTask}
               onToggleImmediate={handleToggleImmediate}
+              sort={sort}
+              onSort={handleSort}
+              onClearSort={() => setSort([])}
             />
           </div>
         )}

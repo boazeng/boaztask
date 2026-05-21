@@ -1,4 +1,4 @@
-import { HiPencil, HiTrash, HiEye } from 'react-icons/hi'
+import { HiPencil, HiTrash, HiEye, HiArrowSmUp, HiArrowSmDown, HiX } from 'react-icons/hi'
 
 const urgencyBadge = {
   'דחוף': 'bg-red-500/20 text-red-400 border-red-500/30',
@@ -14,7 +14,34 @@ const statusBadge = {
   'בוטל': 'bg-gray-500/20 text-gray-400',
 }
 
-export default function TaskList({ tasks, onEdit, onDelete, onView, onToggleImmediate }) {
+const COLUMNS = [
+  { key: 'immediate', label: 'מיידי', align: 'center', sortable: true },
+  { key: 'subject', label: 'נושא', sortable: true },
+  { key: 'sub_subject', label: 'תת נושא', sortable: true },
+  { key: 'description', label: 'תיאור', sortable: false },
+  { key: 'urgency', label: 'דחיפות', sortable: true },
+  { key: 'status', label: 'סטטוס', sortable: true },
+  { key: 'category1', label: 'אחראי', sortable: true },
+  { key: 'category2', label: 'קטגוריה 2', sortable: true },
+  { key: 'created_at', label: 'תאריך', sortable: true },
+]
+
+const FIELD_LABEL = Object.fromEntries(COLUMNS.map(c => [c.key, c.label]))
+
+function SortIndicator({ sort, field }) {
+  const idx = sort.findIndex(s => s.field === field)
+  if (idx < 0) return null
+  const { dir } = sort[idx]
+  const Icon = dir === 'asc' ? HiArrowSmUp : HiArrowSmDown
+  return (
+    <span className="inline-flex items-center text-blue-400">
+      <Icon size={16} />
+      {sort.length > 1 && <span className="text-[10px] mr-0.5">{idx + 1}</span>}
+    </span>
+  )
+}
+
+export default function TaskList({ tasks, onEdit, onDelete, onView, onToggleImmediate, sort = [], onSort, onClearSort }) {
   if (tasks.length === 0) {
     return (
       <div className="bg-gray-900 rounded-xl border border-gray-800 p-12 text-center">
@@ -24,21 +51,56 @@ export default function TaskList({ tasks, onEdit, onDelete, onView, onToggleImme
     )
   }
 
+  const handleHeaderClick = (e, key, sortable) => {
+    if (!sortable) return
+    onSort?.(key, e.shiftKey)
+  }
+
   return (
     <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+      {sort.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-gray-800/40 border-b border-gray-800 text-sm">
+          <span className="text-gray-400">מיין לפי:</span>
+          {sort.map((s, i) => (
+            <button
+              key={s.field}
+              onClick={() => onSort?.(s.field, true)}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-300 hover:bg-blue-500/20 transition-colors"
+              title="לחיצה להפיכת כיוון"
+            >
+              {sort.length > 1 && <span className="text-[10px] opacity-70">{i + 1}</span>}
+              <span>{FIELD_LABEL[s.field] || s.field}</span>
+              {s.dir === 'asc' ? <HiArrowSmUp size={14} /> : <HiArrowSmDown size={14} />}
+            </button>
+          ))}
+          <button
+            onClick={onClearSort}
+            className="inline-flex items-center gap-1 text-gray-400 hover:text-white transition-colors mr-1"
+          >
+            <HiX size={14} /> נקה
+          </button>
+          <span className="text-gray-500 text-xs mr-auto hidden sm:inline">טיפ: Shift+לחיצה על כותרת מוסיפה רמת מיון נוספת</span>
+        </div>
+      )}
+
       {/* Desktop table */}
       <div className="hidden md:block overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-800 text-gray-300 text-lg">
-              <th className="text-center px-4 py-3 font-bold">מיידי</th>
-              <th className="text-right px-4 py-3 font-bold">נושא</th>
-              <th className="text-right px-4 py-3 font-bold">תת נושא</th>
-              <th className="text-right px-4 py-3 font-bold">תיאור</th>
-              <th className="text-right px-4 py-3 font-bold">דחיפות</th>
-              <th className="text-right px-4 py-3 font-bold">סטטוס</th>
-              <th className="text-right px-4 py-3 font-bold">אחראי</th>
-              <th className="text-right px-4 py-3 font-bold">קטגוריה 2</th>
+              {COLUMNS.map(col => (
+                <th
+                  key={col.key}
+                  onClick={(e) => handleHeaderClick(e, col.key, col.sortable)}
+                  className={`px-4 py-3 font-bold select-none ${col.align === 'center' ? 'text-center' : 'text-right'} ${col.sortable ? 'cursor-pointer hover:bg-gray-800/50 transition-colors' : ''}`}
+                  title={col.sortable ? 'לחיצה למיון · Shift+לחיצה להוספת רמה' : undefined}
+                >
+                  <span className={`inline-flex items-center gap-1 ${col.align === 'center' ? 'justify-center' : ''}`}>
+                    {col.label}
+                    <SortIndicator sort={sort} field={col.key} />
+                  </span>
+                </th>
+              ))}
               <th className="text-center px-4 py-3 font-bold">פעולות</th>
             </tr>
           </thead>
@@ -74,6 +136,9 @@ export default function TaskList({ tasks, onEdit, onDelete, onView, onToggleImme
                 </td>
                 <td className="px-4 py-3 text-gray-300">{task.category1 || '-'}</td>
                 <td className="px-4 py-3 text-gray-300">{task.category2 || '-'}</td>
+                <td className="px-4 py-3 text-gray-300 whitespace-nowrap">
+                  {task.created_at ? new Date(task.created_at).toLocaleDateString('he-IL') : '-'}
+                </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-center gap-1">
                     <button onClick={() => onView(task)} className="p-2 text-gray-400 hover:text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors" title="צפייה">
