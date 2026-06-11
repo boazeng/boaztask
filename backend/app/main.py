@@ -66,6 +66,22 @@ def _seed_subjects_from_existing_tasks():
 _seed_subjects_from_existing_tasks()
 
 
+def _purge_revoked_tokens():
+    """One-time housekeeping: drop any leftover soft-revoked tokens from
+    the previous implementation, since deletion is now hard-delete."""
+    db = SessionLocal()
+    try:
+        deleted = db.query(ApiToken).filter(ApiToken.revoked == True).delete()  # noqa: E712
+        if deleted:
+            db.commit()
+            logger.info("Purged %d revoked tokens (soft → hard delete migration)", deleted)
+    finally:
+        db.close()
+
+
+_purge_revoked_tokens()
+
+
 app = FastAPI(title="BoazTask API", version="1.1.0")
 
 app.add_middleware(

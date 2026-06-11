@@ -58,7 +58,7 @@ def create_token(payload: ApiTokenCreate,
 
 
 @router.delete("/{token_id}", status_code=204)
-def revoke_token(token_id: int,
+def delete_token(token_id: int,
                  user: dict = Depends(require_auth),
                  db: Session = Depends(get_db)):
     row = db.query(ApiToken).filter(ApiToken.id == token_id).first()
@@ -66,5 +66,5 @@ def revoke_token(token_id: int,
         raise HTTPException(status_code=404, detail="הטוקן לא נמצא")
     if row.user_email != user["email"] and user["role"] != "admin":
         raise HTTPException(status_code=403, detail="אין לך הרשאה")
-    row.revoked = True
+    db.delete(row)
     db.commit()
