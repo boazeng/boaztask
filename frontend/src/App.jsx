@@ -7,7 +7,9 @@ import TaskForm from './components/TaskForm'
 import TaskDetail from './components/TaskDetail'
 import FilterBar from './components/FilterBar'
 import ConfirmDialog from './components/ConfirmDialog'
+import SubjectsManager from './components/SubjectsManager'
 import * as api from './api/tasks'
+import * as subjectsApi from './api/subjects'
 
 export default function App() {
   const [view, setView] = useState('tasks')
@@ -19,6 +21,7 @@ export default function App() {
   const [viewingTask, setViewingTask] = useState(null)
   const [deleteTargetId, setDeleteTargetId] = useState(null)
   const [sort, setSort] = useState([])
+  const [subjects, setSubjects] = useState([])
 
   const loadTasks = useCallback(async () => {
     try {
@@ -42,10 +45,20 @@ export default function App() {
     }
   }, [])
 
+  const loadSubjects = useCallback(async () => {
+    try {
+      const data = await subjectsApi.getSubjects()
+      setSubjects(data)
+    } catch {
+      // subjects endpoint may not be up yet
+    }
+  }, [])
+
   useEffect(() => {
     loadTasks()
     loadStats()
-  }, [loadTasks, loadStats])
+    loadSubjects()
+  }, [loadTasks, loadStats, loadSubjects])
 
   const handleSort = (field, addLevel) => {
     setSort(prev => {
@@ -104,6 +117,7 @@ export default function App() {
       setEditingTask(null)
       loadTasks()
       loadStats()
+      loadSubjects()
     } catch {
       toast.error('שגיאה בשמירת מטלה')
     }
@@ -145,6 +159,7 @@ export default function App() {
   const handleAddTask = () => {
     setEditingTask(null)
     setShowForm(true)
+    loadSubjects()
   }
 
   return (
@@ -184,11 +199,16 @@ export default function App() {
             />
           </div>
         )}
+
+        {view === 'subjects' && (
+          <SubjectsManager />
+        )}
       </Layout>
 
       {showForm && (
         <TaskForm
           task={editingTask}
+          subjects={subjects}
           onSave={handleSave}
           onClose={() => { setShowForm(false); setEditingTask(null) }}
         />

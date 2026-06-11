@@ -5,6 +5,7 @@ import TactIcon from './TactIcon'
 const navItems = [
   { id: 'dashboard', label: 'לוח בקרה', icon: 'dashboard' },
   { id: 'tasks', label: 'מטלות', icon: 'document' },
+  { id: 'subjects', label: 'נושאים', icon: 'folder' },
 ]
 
 export default function Layout({ currentView, onViewChange, onAddTask, children }) {

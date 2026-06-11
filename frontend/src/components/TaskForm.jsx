@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { HiX } from 'react-icons/hi'
 
 const urgencyOptions = ['דחוף', 'גבוה', 'בינוני', 'נמוך']
 const statusOptions = ['חדש', 'בטיפול', 'הושלם', 'בוטל']
 
-export default function TaskForm({ task, onSave, onClose }) {
+export default function TaskForm({ task, subjects = [], onSave, onClose }) {
   const [form, setForm] = useState({
     subject: '',
     sub_subject: '',
@@ -31,13 +31,37 @@ export default function TaskForm({ task, onSave, onClose }) {
     }
   }, [task])
 
+  const subjectNames = useMemo(() => subjects.map(s => s.name), [subjects])
+
+  const subSubjectsForCurrent = useMemo(() => {
+    const subj = subjects.find(s => s.name === form.subject)
+    return subj ? subj.sub_subjects.map(ss => ss.name) : []
+  }, [subjects, form.subject])
+
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!form.subject.trim()) return
     onSave(form)
   }
 
+  const setSubject = (e) => {
+    const val = e.target.value
+    setForm(prev => {
+      const subj = subjects.find(s => s.name === val)
+      const stillValid = subj && subj.sub_subjects.some(ss => ss.name === prev.sub_subject)
+      return { ...prev, subject: val, sub_subject: stillValid ? prev.sub_subject : '' }
+    })
+  }
+
   const set = (field) => (e) => setForm(prev => ({ ...prev, [field]: e.target.value }))
+
+  const subjectOptions = subjectNames.includes(form.subject) || !form.subject
+    ? subjectNames
+    : [form.subject, ...subjectNames]
+
+  const subSubjectOptions = subSubjectsForCurrent.includes(form.sub_subject) || !form.sub_subject
+    ? subSubjectsForCurrent
+    : [form.sub_subject, ...subSubjectsForCurrent]
 
   return (
     <div className="fixed inset-0 bg-warm-ink/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -54,26 +78,58 @@ export default function TaskForm({ task, onSave, onClose }) {
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
             <label className="tact-field-label">נושא *</label>
-            <input
-              type="text"
-              value={form.subject}
-              onChange={set('subject')}
-              className="tact-field"
-              placeholder="הזן נושא..."
-              required
-              autoFocus
-            />
+            {subjectNames.length === 0 ? (
+              <input
+                type="text"
+                value={form.subject}
+                onChange={set('subject')}
+                className="tact-field"
+                placeholder="הזן נושא..."
+                required
+                autoFocus
+              />
+            ) : (
+              <select
+                value={form.subject}
+                onChange={setSubject}
+                className="tact-field"
+                required
+                autoFocus
+              >
+                <option value="">— בחר נושא —</option>
+                {subjectOptions.map(name => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+            )}
+            {subjectNames.length === 0 && (
+              <p className="text-xs text-taupe mt-1">אין עוד נושאים מוגדרים. צור נושאים במסך "נושאים".</p>
+            )}
           </div>
 
           <div>
             <label className="tact-field-label">תת נושא</label>
-            <input
-              type="text"
-              value={form.sub_subject}
-              onChange={set('sub_subject')}
-              className="tact-field"
-              placeholder="הזן תת נושא..."
-            />
+            {subSubjectsForCurrent.length === 0 ? (
+              <input
+                type="text"
+                value={form.sub_subject}
+                onChange={set('sub_subject')}
+                className="tact-field"
+                placeholder={form.subject ? 'אין תת-נושאים מוגדרים — אפשר להקליד חופשי' : 'בחר קודם נושא...'}
+                disabled={!form.subject && subjectNames.length > 0}
+              />
+            ) : (
+              <select
+                value={form.sub_subject}
+                onChange={set('sub_subject')}
+                className="tact-field"
+              >
+                <option value="">— ללא תת-נושא —</option>
+                {subSubjectOptions.map(name => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+            )}
           </div>
 
           <div>

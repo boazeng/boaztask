@@ -1,7 +1,47 @@
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from .models import UrgencyLevel, TaskStatus
+
+
+class SubSubjectBase(BaseModel):
+    name: str
+
+
+class SubSubjectCreate(SubSubjectBase):
+    pass
+
+
+class SubSubjectUpdate(BaseModel):
+    name: Optional[str] = None
+
+
+class SubSubjectResponse(SubSubjectBase):
+    id: int
+    subject_id: int
+    task_count: int = 0
+    created_at: datetime
+    model_config = {"from_attributes": True}
+
+
+class SubjectBase(BaseModel):
+    name: str
+
+
+class SubjectCreate(SubjectBase):
+    pass
+
+
+class SubjectUpdate(BaseModel):
+    name: Optional[str] = None
+
+
+class SubjectResponse(SubjectBase):
+    id: int
+    sub_subjects: List[SubSubjectResponse] = []
+    task_count: int = 0
+    created_at: datetime
+    model_config = {"from_attributes": True}
 
 
 class TaskCreate(BaseModel):

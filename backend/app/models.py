@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, Enum as SAEnum
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, UniqueConstraint, Enum as SAEnum
+from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 import enum
 
@@ -17,6 +18,33 @@ class TaskStatus(str, enum.Enum):
     IN_PROGRESS = "בטיפול"
     COMPLETED = "הושלם"
     CANCELLED = "בוטל"
+
+
+class Subject(Base):
+    __tablename__ = "subjects"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(200), nullable=False, unique=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    sub_subjects = relationship(
+        "SubSubject",
+        back_populates="subject",
+        cascade="all, delete-orphan",
+        order_by="SubSubject.name",
+    )
+
+
+class SubSubject(Base):
+    __tablename__ = "sub_subjects"
+    __table_args__ = (UniqueConstraint("subject_id", "name", name="uq_subsubject_name_per_subject"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    subject_id = Column(Integer, ForeignKey("subjects.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(200), nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    subject = relationship("Subject", back_populates="sub_subjects")
 
 
 class Task(Base):
