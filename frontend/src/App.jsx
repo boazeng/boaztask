@@ -17,6 +17,7 @@ import * as authApi from './api/auth'
 
 export default function App() {
   const [authReady, setAuthReady] = useState(false)
+  const [authInstalled, setAuthInstalled] = useState(false)
   const [currentUser, setCurrentUser] = useState(null)
   const [view, setView] = useState('tasks')
   const [tasks, setTasks] = useState([])
@@ -45,6 +46,7 @@ export default function App() {
         const me = await authApi.getMe()
         if (cancelled) return
         if (me && me.email) {
+          setAuthInstalled(true)
           setCurrentUser(me)
         } else {
           window.location.href = '/login'
@@ -57,6 +59,7 @@ export default function App() {
           return
         }
         // 404 or network — auth not installed; proceed without it
+        setAuthInstalled(false)
         setCurrentUser({ email: 'guest', role: 'admin', name: '' })
       }
       setAuthReady(true)
@@ -232,6 +235,7 @@ export default function App() {
       <Layout
         currentView={view}
         currentUser={currentUser}
+        authInstalled={authInstalled}
         onViewChange={(v) => { setView(v); if (v !== 'subjects') loadSubjects() }}
         onAddTask={handleAddTask}
       >
@@ -260,11 +264,11 @@ export default function App() {
           <SubjectsManager />
         )}
 
-        {view === 'tokens' && (
+        {view === 'tokens' && authInstalled && (
           <TokensManager currentUser={currentUser} />
         )}
 
-        {view === 'users' && currentUser?.role === 'admin' && (
+        {view === 'users' && authInstalled && currentUser?.role === 'admin' && (
           <UsersManager />
         )}
       </Layout>

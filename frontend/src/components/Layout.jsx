@@ -2,10 +2,13 @@ import { HiPlus, HiLogout, HiUser } from 'react-icons/hi'
 import TactLogo from './TactLogo'
 import TactIcon from './TactIcon'
 
-const BASE_NAV = [
+const PUBLIC_NAV = [
   { id: 'dashboard', label: 'לוח בקרה', icon: 'dashboard' },
   { id: 'tasks', label: 'מטלות', icon: 'document' },
   { id: 'subjects', label: 'נושאים', icon: 'folder' },
+]
+
+const AUTH_NAV = [
   { id: 'tokens', label: 'API Tokens', icon: 'terminal' },
 ]
 
@@ -13,9 +16,13 @@ const ADMIN_NAV = [
   { id: 'users', label: 'משתמשים', icon: 'users' },
 ]
 
-export default function Layout({ currentView, onViewChange, onAddTask, currentUser, children }) {
+export default function Layout({ currentView, onViewChange, onAddTask, currentUser, authInstalled, children }) {
   const role = currentUser?.role
-  const navItems = role === 'admin' ? [...BASE_NAV, ...ADMIN_NAV] : BASE_NAV
+  const navItems = [
+    ...PUBLIC_NAV,
+    ...(authInstalled ? AUTH_NAV : []),
+    ...(authInstalled && role === 'admin' ? ADMIN_NAV : []),
+  ]
 
   return (
     <div className="tact-aurora min-h-screen bg-cream text-warm-ink">
@@ -50,7 +57,7 @@ export default function Layout({ currentView, onViewChange, onAddTask, currentUs
             מטלה חדשה
           </button>
 
-          {currentUser && (
+          {authInstalled && currentUser && (
             <div className="flex items-center gap-2 pr-2 mr-1 border-r border-warm-border">
               <div className="hidden sm:flex items-center gap-2 text-sm">
                 <HiUser size={16} className="text-taupe" />
