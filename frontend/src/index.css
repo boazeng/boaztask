@@ -1,29 +1,38 @@
+@import './styles/tokens.css';
+@import './styles/recipes.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-* {
-  font-family: 'Heebo', sans-serif;
+/* App-wide focus on form fields, matches TACT palette */
+input:not([type="checkbox"]):not([type="radio"]):focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 3px rgba(31, 58, 95, 0.18) !important;
+  background: #fff !important;
+}
+input:not([type="checkbox"]):not([type="radio"]):hover,
+select:hover,
+textarea:hover {
+  border-color: rgba(31, 58, 95, 0.45) !important;
+}
+input::placeholder,
+textarea::placeholder {
+  color: #A9A295;
 }
 
-::-webkit-scrollbar {
-  width: 8px;
-}
-::-webkit-scrollbar-track {
-  background: #1a1a2e;
-}
-::-webkit-scrollbar-thumb {
-  background: #4a4a6a;
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #6a6a8a;
-}
+/* Warm scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--color-bg); }
+::-webkit-scrollbar-thumb { background: #C9C2B2; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #ACA290; }
 
+/* Modal pop animation */
 @keyframes dialog-pop {
   from { opacity: 0; transform: scale(0.95); }
   to   { opacity: 1; transform: scale(1); }
 }
-.dialog-pop {
-  animation: dialog-pop 150ms ease-out;
-}
+.dialog-pop { animation: dialog-pop 150ms ease-out; }

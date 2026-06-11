@@ -152,7 +152,15 @@ export default function App() {
       <Toaster
         position="top-center"
         toastOptions={{
-          style: { background: '#1f2937', color: '#f3f4f6', border: '1px solid #374151' },
+          style: {
+            background: '#FFFEFB',
+            color: '#2A2A28',
+            border: '1px solid #E7E2D6',
+            boxShadow: '0 8px 30px rgba(28, 27, 25, 0.13)',
+            fontFamily: "'Heebo', sans-serif",
+          },
+          success: { iconTheme: { primary: '#2F8F5B', secondary: '#FFFEFB' } },
+          error:   { iconTheme: { primary: '#D64A2E', secondary: '#FFFEFB' } },
         }}
       />
 

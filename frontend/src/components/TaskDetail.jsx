@@ -1,29 +1,28 @@
 import { HiX, HiPencil, HiCalendar } from 'react-icons/hi'
 
+const URGENCY_COLOR = {
+  'דחוף': '#D64A2E',
+  'גבוה': '#E07A52',
+  'בינוני': '#1F3A5F',
+  'נמוך': '#2F8F5B',
+}
+
 export default function TaskDetail({ task, onClose, onEdit }) {
   if (!task) return null
 
-  const urgencyColor = {
-    'דחוף': 'bg-red-500',
-    'גבוה': 'bg-orange-500',
-    'בינוני': 'bg-yellow-500',
-    'נמוך': 'bg-green-500',
-  }
-
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-gray-900 rounded-2xl border border-gray-700 w-full max-w-lg">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-800">
-          <div className="flex items-center gap-3">
-            <span className={`w-3 h-3 rounded-full ${urgencyColor[task.urgency]}`} />
-            <h2 className="text-xl font-bold text-white">{task.subject}</h2>
+    <div className="fixed inset-0 bg-warm-ink/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-cream-white rounded-2xl border border-warm-border w-full max-w-lg shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-warm-border bg-[rgba(31,58,95,0.04)]">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="w-3 h-3 rounded-full shrink-0" style={{ background: URGENCY_COLOR[task.urgency] || '#9b9588' }} />
+            <h2 className="text-xl font-bold text-primary truncate">{task.subject}</h2>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => onEdit(task)} className="p-2 text-gray-400 hover:text-yellow-400 hover:bg-yellow-400/10 rounded-lg transition-colors">
-              <HiPencil size={20} />
+          <div className="flex items-center gap-1 shrink-0">
+            <button onClick={() => onEdit(task)} className="p-2 text-taupe hover:text-warn hover:bg-[rgba(201,146,56,0.14)] rounded-lg transition-colors" title="עריכה">
+              <HiPencil size={18} />
             </button>
-            <button onClick={onClose} className="p-2 text-gray-400 hover:text-white transition-colors">
+            <button onClick={onClose} className="p-2 text-taupe hover:text-warm-ink transition-colors" title="סגירה">
               <HiX size={20} />
             </button>
           </div>
@@ -32,49 +31,49 @@ export default function TaskDetail({ task, onClose, onEdit }) {
         <div className="p-6 space-y-4">
           {task.sub_subject && (
             <div>
-              <label className="text-sm text-gray-500">תת נושא</label>
-              <p className="text-gray-200">{task.sub_subject}</p>
+              <label className="tact-field-label">תת נושא</label>
+              <p className="text-warm-ink">{task.sub_subject}</p>
             </div>
           )}
 
           {task.description && (
             <div>
-              <label className="text-sm text-gray-500">תיאור</label>
-              <p className="text-gray-200 whitespace-pre-wrap">{task.description}</p>
+              <label className="tact-field-label">תיאור</label>
+              <p className="text-warm-ink whitespace-pre-wrap">{task.description}</p>
             </div>
           )}
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm text-gray-500">דחיפות</label>
-              <p className="text-gray-200">{task.urgency}</p>
+              <label className="tact-field-label">דחיפות</label>
+              <p className="text-warm-ink font-semibold">{task.urgency}</p>
             </div>
             <div>
-              <label className="text-sm text-gray-500">סטטוס</label>
-              <p className="text-gray-200">{task.status}</p>
+              <label className="tact-field-label">סטטוס</label>
+              <p className="text-warm-ink font-semibold">{task.status}</p>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             {task.category1 && (
               <div>
-                <label className="text-sm text-gray-500">אחראי</label>
-                <p className="text-gray-200">{task.category1}</p>
+                <label className="tact-field-label">אחראי</label>
+                <p className="text-warm-ink">{task.category1}</p>
               </div>
             )}
             {task.category2 && (
               <div>
-                <label className="text-sm text-gray-500">קטגוריה 2</label>
-                <p className="text-gray-200">{task.category2}</p>
+                <label className="tact-field-label">קטגוריה 2</label>
+                <p className="text-warm-ink">{task.category2}</p>
               </div>
             )}
           </div>
 
-          <div className="flex items-center gap-2 text-sm text-gray-500 pt-2 border-t border-gray-800">
+          <div className="flex items-center gap-2 text-sm text-taupe pt-3 border-t border-warm-border">
             <HiCalendar size={14} />
-            <span>נוצר: {new Date(task.created_at).toLocaleDateString('he-IL')}</span>
-            <span className="mx-2">|</span>
-            <span>עודכן: {new Date(task.updated_at).toLocaleDateString('he-IL')}</span>
+            <span className="font-en">נוצר: {new Date(task.created_at).toLocaleDateString('he-IL')}</span>
+            <span className="mx-1">·</span>
+            <span className="font-en">עודכן: {new Date(task.updated_at).toLocaleDateString('he-IL')}</span>
           </div>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { HiSearch, HiFilter } from 'react-icons/hi'
+import { HiSearch } from 'react-icons/hi'
 
 const urgencyOptions = ['הכל', 'דחוף', 'גבוה', 'בינוני', 'נמוך']
 const statusOptions = ['הכל', 'חדש', 'בטיפול', 'הושלם', 'בוטל']
@@ -10,33 +10,30 @@ export default function FilterBar({ filters, onFilterChange }) {
   }
 
   return (
-    <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 flex flex-wrap gap-3 items-center">
-      {/* Search */}
+    <div className="bg-cream-white rounded-2xl border border-warm-border p-3 flex flex-wrap gap-3 items-center shadow-sm">
       <div className="relative flex-1 min-w-[200px]">
-        <HiSearch className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+        <HiSearch className="absolute right-3 top-1/2 -translate-y-1/2 text-taupe pointer-events-none" size={18} />
         <input
           type="text"
           value={filters.search || ''}
           onChange={(e) => onFilterChange({ ...filters, search: e.target.value })}
           placeholder="חיפוש..."
-          className="w-full bg-gray-800 border border-gray-700 rounded-lg pr-10 pl-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+          className="tact-field pr-10"
         />
       </div>
 
-      {/* Status filter */}
       <select
         value={filters.status || 'הכל'}
         onChange={set('status')}
-        className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+        className="tact-field max-w-[180px]"
       >
         {statusOptions.map(opt => <option key={opt} value={opt}>{opt === 'הכל' ? 'כל הסטטוסים' : opt}</option>)}
       </select>
 
-      {/* Urgency filter */}
       <select
         value={filters.urgency || 'הכל'}
         onChange={set('urgency')}
-        className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+        className="tact-field max-w-[180px]"
       >
         {urgencyOptions.map(opt => <option key={opt} value={opt}>{opt === 'הכל' ? 'כל הדחיפויות' : opt}</option>)}
       </select>
