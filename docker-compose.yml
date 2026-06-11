@@ -20,6 +20,16 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://boaztask:${DB_PASSWORD:-boaztask_secure_2024}@db:5432/boaztask
+      AUTH_DB_PATH: /data/auth.db
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
+      AUTH_SESSION_SECRET: ${AUTH_SESSION_SECRET:-}
+      AUTH_EMERGENCY_TOKEN: ${AUTH_EMERGENCY_TOKEN:-}
+      AUTH_SUPER_ADMIN_EMAIL: ${AUTH_SUPER_ADMIN_EMAIL:-boazen@gmail.com}
+      AUTH_REDIRECT_URI: ${AUTH_REDIRECT_URI:-https://task.newavera.co.il/auth/callback}
+      AUTH_DISABLED: ${AUTH_DISABLED:-}
+    volumes:
+      - auth_data:/data
     depends_on:
       - db
     networks:
@@ -51,6 +61,7 @@ services:
 
 volumes:
   postgres_data:
+  auth_data:
 
 networks:
   boaztask-net:

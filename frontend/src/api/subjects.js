@@ -1,6 +1,4 @@
-import axios from 'axios'
-
-const api = axios.create({ baseURL: '/api' })
+import { apiClient as api } from './client'
 
 export const getSubjects = () => api.get('/subjects/').then(r => r.data)
 export const createSubject = (name) => api.post('/subjects/', { name }).then(r => r.data)

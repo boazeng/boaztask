@@ -8,10 +8,16 @@ import TaskDetail from './components/TaskDetail'
 import FilterBar from './components/FilterBar'
 import ConfirmDialog from './components/ConfirmDialog'
 import SubjectsManager from './components/SubjectsManager'
+import TokensManager from './components/TokensManager'
+import UsersManager from './components/UsersManager'
+import { installAuthInterceptor } from './api/client'
 import * as api from './api/tasks'
 import * as subjectsApi from './api/subjects'
+import * as authApi from './api/auth'
 
 export default function App() {
+  const [authReady, setAuthReady] = useState(false)
+  const [currentUser, setCurrentUser] = useState(null)
   const [view, setView] = useState('tasks')
   const [tasks, setTasks] = useState([])
   const [stats, setStats] = useState({ total: 0, by_status: {}, by_urgency: {} })
@@ -22,6 +28,41 @@ export default function App() {
   const [deleteTargetId, setDeleteTargetId] = useState(null)
   const [sort, setSort] = useState([])
   const [subjects, setSubjects] = useState([])
+
+  // Install the 401 interceptor once on mount.
+  useEffect(() => {
+    installAuthInterceptor(() => { window.location.href = '/login' })
+  }, [])
+
+  // Resolve the current user — if /auth/me returns nothing, send the user
+  // through Google. If shared-auth isn't installed at all (dev mode), the
+  // endpoint will 404 and we fall back to an anonymous user so the app
+  // still loads.
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const me = await authApi.getMe()
+        if (cancelled) return
+        if (me && me.email) {
+          setCurrentUser(me)
+        } else {
+          window.location.href = '/login'
+          return
+        }
+      } catch (err) {
+        if (cancelled) return
+        if (err?.response?.status === 401) {
+          window.location.href = '/login'
+          return
+        }
+        // 404 or network — auth not installed; proceed without it
+        setCurrentUser({ email: 'guest', role: 'admin', name: '' })
+      }
+      setAuthReady(true)
+    })()
+    return () => { cancelled = true }
+  }, [])
 
   const loadTasks = useCallback(async () => {
     try {
@@ -55,10 +96,11 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    if (!authReady) return
     loadTasks()
     loadStats()
     loadSubjects()
-  }, [loadTasks, loadStats, loadSubjects])
+  }, [authReady, loadTasks, loadStats, loadSubjects])
 
   const handleSort = (field, addLevel) => {
     setSort(prev => {
@@ -162,6 +204,14 @@ export default function App() {
     loadSubjects()
   }
 
+  if (!authReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-cream">
+        <p className="text-taupe">טוען...</p>
+      </div>
+    )
+  }
+
   return (
     <>
       <Toaster
@@ -179,7 +229,12 @@ export default function App() {
         }}
       />
 
-      <Layout currentView={view} onViewChange={(v) => { setView(v); if (v !== 'subjects') loadSubjects() }} onAddTask={handleAddTask}>
+      <Layout
+        currentView={view}
+        currentUser={currentUser}
+        onViewChange={(v) => { setView(v); if (v !== 'subjects') loadSubjects() }}
+        onAddTask={handleAddTask}
+      >
         {view === 'dashboard' && (
           <Dashboard stats={stats} tasks={tasks} />
         )}
@@ -203,6 +258,14 @@ export default function App() {
 
         {view === 'subjects' && (
           <SubjectsManager />
+        )}
+
+        {view === 'tokens' && (
+          <TokensManager currentUser={currentUser} />
+        )}
+
+        {view === 'users' && currentUser?.role === 'admin' && (
+          <UsersManager />
         )}
       </Layout>
 

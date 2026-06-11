@@ -44,6 +44,27 @@ class SubjectResponse(SubjectBase):
     model_config = {"from_attributes": True}
 
 
+class ApiTokenCreate(BaseModel):
+    name: str
+    expires_in_days: Optional[int] = None
+
+
+class ApiTokenSummary(BaseModel):
+    id: int
+    name: str
+    prefix: str
+    user_email: str
+    revoked: bool
+    created_at: datetime
+    last_used_at: Optional[datetime] = None
+    expires_at: Optional[datetime] = None
+    model_config = {"from_attributes": True}
+
+
+class ApiTokenWithSecret(ApiTokenSummary):
+    token: str
+
+
 class TaskCreate(BaseModel):
     subject: str
     sub_subject: str = ""

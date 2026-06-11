@@ -49,6 +49,23 @@ class SubSubject(Base):
     subject = relationship("Subject", back_populates="sub_subjects")
 
 
+class ApiToken(Base):
+    """A bearer token tied to a single user email. The token value itself is
+    never stored — only its SHA-256 hash. The plaintext is shown to the user
+    exactly once on creation."""
+    __tablename__ = "api_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_email = Column(String(200), nullable=False, index=True)
+    name = Column(String(120), nullable=False)
+    token_hash = Column(String(64), nullable=False, unique=True, index=True)
+    prefix = Column(String(24), nullable=False)
+    revoked = Column(Boolean, nullable=False, default=False, server_default="false")
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    last_used_at = Column(DateTime, nullable=True)
+    expires_at = Column(DateTime, nullable=True)
+
+
 class Task(Base):
     __tablename__ = "tasks"
 
