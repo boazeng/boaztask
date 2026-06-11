@@ -179,7 +179,7 @@ export default function App() {
         }}
       />
 
-      <Layout currentView={view} onViewChange={setView} onAddTask={handleAddTask}>
+      <Layout currentView={view} onViewChange={(v) => { setView(v); if (v !== 'subjects') loadSubjects() }} onAddTask={handleAddTask}>
         {view === 'dashboard' && (
           <Dashboard stats={stats} tasks={tasks} />
         )}
@@ -189,6 +189,7 @@ export default function App() {
             <FilterBar filters={filters} onFilterChange={setFilters} />
             <TaskList
               tasks={sortedTasks}
+              subjects={subjects}
               onEdit={handleEdit}
               onDelete={handleDelete}
               onView={setViewingTask}

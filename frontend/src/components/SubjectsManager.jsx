@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'react-hot-toast'
-import { HiChevronDown, HiChevronLeft, HiPlus, HiPencil, HiTrash, HiCheck, HiX } from 'react-icons/hi'
+import { HiChevronDown, HiChevronLeft, HiPlus, HiPencil, HiTrash, HiCheck, HiX, HiSelector } from 'react-icons/hi'
 import TactIcon from './TactIcon'
 import ConfirmDialog from './ConfirmDialog'
 import * as api from '../api/subjects'
@@ -15,6 +15,8 @@ export default function SubjectsManager() {
   const [editingSubSubjectId, setEditingSubSubjectId] = useState(null)
   const [editingSubSubjectName, setEditingSubSubjectName] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(null)
+  const [dragging, setDragging] = useState(null)
+  const [dragOverId, setDragOverId] = useState(null)
 
   const load = useCallback(async () => {
     try {
@@ -41,7 +43,7 @@ export default function SubjectsManager() {
     if (!name) return
     try {
       const created = await api.createSubject(name)
-      setSubjects(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name, 'he')))
+      setSubjects(prev => [...prev, created])
       setNewSubject('')
       toast.success('נושא נוצר')
     } catch (err) {
@@ -59,7 +61,7 @@ export default function SubjectsManager() {
     if (!name) return
     try {
       const updated = await api.updateSubject(id, name)
-      setSubjects(prev => prev.map(s => s.id === id ? updated : s).sort((a, b) => a.name.localeCompare(b.name, 'he')))
+      setSubjects(prev => prev.map(s => s.id === id ? updated : s))
       setEditingSubjectId(null)
       toast.success('הנושא עודכן')
     } catch (err) {
@@ -75,7 +77,7 @@ export default function SubjectsManager() {
       const created = await api.createSubSubject(subjectId, name)
       setSubjects(prev => prev.map(s =>
         s.id === subjectId
-          ? { ...s, sub_subjects: [...s.sub_subjects, created].sort((a, b) => a.name.localeCompare(b.name, 'he')) }
+          ? { ...s, sub_subjects: [...s.sub_subjects, created] }
           : s
       ))
       setNewSubSubject(prev => ({ ...prev, [subjectId]: '' }))
@@ -97,7 +99,7 @@ export default function SubjectsManager() {
       const updated = await api.updateSubSubject(ssId, name)
       setSubjects(prev => prev.map(s =>
         s.id === subjectId
-          ? { ...s, sub_subjects: s.sub_subjects.map(x => x.id === ssId ? updated : x).sort((a, b) => a.name.localeCompare(b.name, 'he')) }
+          ? { ...s, sub_subjects: s.sub_subjects.map(x => x.id === ssId ? updated : x) }
           : s
       ))
       setEditingSubSubjectId(null)
@@ -132,6 +134,99 @@ export default function SubjectsManager() {
     }
   }
 
+  // ---- drag-and-drop ----
+  const onDragStartSubject = (e, subj) => {
+    setDragging({ kind: 'subject', id: subj.id })
+    try {
+      e.dataTransfer.effectAllowed = 'move'
+      e.dataTransfer.setData('text/plain', String(subj.id))
+    } catch {}
+  }
+
+  const onDragStartSubSubject = (e, ss, parentId) => {
+    setDragging({ kind: 'sub-subject', id: ss.id, parentId })
+    try {
+      e.dataTransfer.effectAllowed = 'move'
+      e.dataTransfer.setData('text/plain', String(ss.id))
+    } catch {}
+  }
+
+  const onDragOverSubject = (e, subj) => {
+    if (!dragging || dragging.kind !== 'subject' || dragging.id === subj.id) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    if (dragOverId !== `s:${subj.id}`) setDragOverId(`s:${subj.id}`)
+  }
+
+  const onDragOverSubSubject = (e, ss, parentId) => {
+    if (!dragging || dragging.kind !== 'sub-subject' || dragging.parentId !== parentId || dragging.id === ss.id) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    if (dragOverId !== `ss:${ss.id}`) setDragOverId(`ss:${ss.id}`)
+  }
+
+  const onDragEnd = () => {
+    setDragging(null)
+    setDragOverId(null)
+  }
+
+  const reorderSubjects = async (sourceId, targetId) => {
+    const ids = subjects.map(s => s.id)
+    const fromIdx = ids.indexOf(sourceId)
+    const toIdx = ids.indexOf(targetId)
+    if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return
+    const newIds = [...ids]
+    const [moved] = newIds.splice(fromIdx, 1)
+    newIds.splice(toIdx, 0, moved)
+    const prev = subjects
+    const byId = new Map(subjects.map(s => [s.id, s]))
+    setSubjects(newIds.map(id => byId.get(id)))
+    try {
+      await api.reorderSubjects(newIds)
+    } catch {
+      setSubjects(prev)
+      toast.error('שגיאה בעדכון סדר הנושאים')
+    }
+  }
+
+  const reorderSubSubjects = async (parentId, sourceId, targetId) => {
+    const parent = subjects.find(s => s.id === parentId)
+    if (!parent) return
+    const ids = parent.sub_subjects.map(ss => ss.id)
+    const fromIdx = ids.indexOf(sourceId)
+    const toIdx = ids.indexOf(targetId)
+    if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return
+    const newIds = [...ids]
+    const [moved] = newIds.splice(fromIdx, 1)
+    newIds.splice(toIdx, 0, moved)
+    const prev = subjects
+    const byId = new Map(parent.sub_subjects.map(ss => [ss.id, ss]))
+    setSubjects(subjects.map(s => s.id === parentId
+      ? { ...s, sub_subjects: newIds.map(id => byId.get(id)) }
+      : s
+    ))
+    try {
+      await api.reorderSubSubjects(parentId, newIds)
+    } catch {
+      setSubjects(prev)
+      toast.error('שגיאה בעדכון סדר תת-הנושאים')
+    }
+  }
+
+  const onDropSubject = (e, subj) => {
+    e.preventDefault()
+    if (!dragging || dragging.kind !== 'subject') return
+    reorderSubjects(dragging.id, subj.id)
+    onDragEnd()
+  }
+
+  const onDropSubSubject = (e, ss, parentId) => {
+    e.preventDefault()
+    if (!dragging || dragging.kind !== 'sub-subject' || dragging.parentId !== parentId) return
+    reorderSubSubjects(parentId, dragging.id, ss.id)
+    onDragEnd()
+  }
+
   return (
     <div className="space-y-6">
       <div className="tact-kpi flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
@@ -140,7 +235,7 @@ export default function SubjectsManager() {
           <div className="text-warm-ink font-semibold mt-1">
             {subjects.length} נושאים · {subjects.reduce((sum, s) => sum + s.sub_subjects.length, 0)} תת-נושאים
           </div>
-          <p className="text-sm text-taupe mt-1">הוסף, ערוך או מחק נושאים ותת-נושאים שישמשו בכל מטלה חדשה.</p>
+          <p className="text-sm text-taupe mt-1">גרור את ידית הסידור (≡) כדי לקבוע את סדר ההצגה. הסדר ייושם בכל המסכים.</p>
         </div>
         <form onSubmit={handleAddSubject} className="flex gap-2 w-full sm:w-auto">
           <input
@@ -165,9 +260,26 @@ export default function SubjectsManager() {
         ) : subjects.map(subj => {
           const isOpen = expanded.has(subj.id)
           const isEditing = editingSubjectId === subj.id
+          const isDragOver = dragOverId === `s:${subj.id}`
+          const isBeingDragged = dragging?.kind === 'subject' && dragging.id === subj.id
           return (
-            <div key={subj.id} className="bg-cream-white rounded-2xl border border-warm-border shadow-sm overflow-hidden">
+            <div
+              key={subj.id}
+              onDragOver={(e) => onDragOverSubject(e, subj)}
+              onDrop={(e) => onDropSubject(e, subj)}
+              className={`bg-cream-white rounded-2xl border border-warm-border shadow-sm overflow-hidden transition-all ${isBeingDragged ? 'opacity-50' : ''} ${isDragOver ? 'ring-2 ring-primary border-primary' : ''}`}
+            >
               <div className="flex items-center gap-3 px-4 py-3 bg-[rgba(31,58,95,0.04)] border-b border-warm-border">
+                <div
+                  draggable={!isEditing}
+                  onDragStart={(e) => onDragStartSubject(e, subj)}
+                  onDragEnd={onDragEnd}
+                  className="p-1 text-taupe hover:text-primary transition-colors cursor-grab active:cursor-grabbing"
+                  title="גרור לשינוי סדר"
+                >
+                  <HiSelector size={20} />
+                </div>
+
                 <button
                   onClick={() => toggle(subj.id)}
                   className="p-1 text-taupe hover:text-primary transition-colors"
@@ -264,8 +376,24 @@ export default function SubjectsManager() {
                     <div className="space-y-1.5">
                       {subj.sub_subjects.map(ss => {
                         const isEditingSS = editingSubSubjectId === ss.id
+                        const isSSDragOver = dragOverId === `ss:${ss.id}`
+                        const isSSBeingDragged = dragging?.kind === 'sub-subject' && dragging.id === ss.id
                         return (
-                          <div key={ss.id} className="flex items-center gap-3 p-2 rounded-xl border border-warm-border bg-cream/60">
+                          <div
+                            key={ss.id}
+                            onDragOver={(e) => onDragOverSubSubject(e, ss, subj.id)}
+                            onDrop={(e) => onDropSubSubject(e, ss, subj.id)}
+                            className={`flex items-center gap-3 p-2 rounded-xl border bg-cream/60 transition-all ${isSSBeingDragged ? 'opacity-50' : ''} ${isSSDragOver ? 'border-primary ring-2 ring-primary/30' : 'border-warm-border'}`}
+                          >
+                            <div
+                              draggable={!isEditingSS}
+                              onDragStart={(e) => onDragStartSubSubject(e, ss, subj.id)}
+                              onDragEnd={onDragEnd}
+                              className="text-taupe hover:text-primary cursor-grab active:cursor-grabbing"
+                              title="גרור לשינוי סדר"
+                            >
+                              <HiSelector size={18} />
+                            </div>
                             <span className="text-taupe text-sm shrink-0"><TactIcon name="document" size={16} /></span>
                             {isEditingSS ? (
                               <input

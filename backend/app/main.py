@@ -1,11 +1,26 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from .database import engine, Base, SessionLocal
 from .models import Task, Subject, SubSubject
 from .routers import tasks, subjects
 
 Base.metadata.create_all(bind=engine)
+
+
+def _ensure_position_columns():
+    """Idempotently add the position column to subjects/sub_subjects tables
+    on databases that pre-date this schema. PostgreSQL supports
+    ADD COLUMN IF NOT EXISTS, which is also a no-op when running for
+    the first time on fresh tables."""
+    with engine.connect() as conn:
+        conn.execute(text("ALTER TABLE subjects ADD COLUMN IF NOT EXISTS position INTEGER NOT NULL DEFAULT 0"))
+        conn.execute(text("ALTER TABLE sub_subjects ADD COLUMN IF NOT EXISTS position INTEGER NOT NULL DEFAULT 0"))
+        conn.commit()
+
+
+_ensure_position_columns()
 
 
 def _seed_subjects_from_existing_tasks():

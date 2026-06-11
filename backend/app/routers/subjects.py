@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
@@ -8,6 +9,10 @@ from ..schemas import (
     SubjectCreate, SubjectUpdate, SubjectResponse,
     SubSubjectCreate, SubSubjectUpdate, SubSubjectResponse,
 )
+
+
+class ReorderPayload(BaseModel):
+    ids: list[int]
 
 router = APIRouter(prefix="/api/subjects", tags=["subjects"])
 
@@ -38,8 +43,36 @@ def _subject_to_response(subj: Subject, db: Session) -> SubjectResponse:
 
 @router.get("/", response_model=list[SubjectResponse])
 def list_subjects(db: Session = Depends(get_db)):
-    subjects = db.query(Subject).order_by(Subject.name).all()
+    subjects = db.query(Subject).order_by(Subject.position, Subject.name).all()
     return [_subject_to_response(s, db) for s in subjects]
+
+
+@router.post("/reorder", status_code=204)
+def reorder_subjects(payload: ReorderPayload, db: Session = Depends(get_db)):
+    rows = {s.id: s for s in db.query(Subject).filter(Subject.id.in_(payload.ids)).all()}
+    if len(rows) != len(payload.ids):
+        raise HTTPException(status_code=400, detail="חלק מהנושאים לא נמצאו")
+    for index, subject_id in enumerate(payload.ids):
+        rows[subject_id].position = index
+    db.commit()
+
+
+@router.post("/{subject_id}/sub-subjects/reorder", status_code=204)
+def reorder_sub_subjects(subject_id: int, payload: ReorderPayload, db: Session = Depends(get_db)):
+    subj = db.query(Subject).filter(Subject.id == subject_id).first()
+    if not subj:
+        raise HTTPException(status_code=404, detail="הנושא לא נמצא")
+    rows = {
+        ss.id: ss
+        for ss in db.query(SubSubject)
+            .filter(SubSubject.subject_id == subject_id, SubSubject.id.in_(payload.ids))
+            .all()
+    }
+    if len(rows) != len(payload.ids):
+        raise HTTPException(status_code=400, detail="חלק מתת-הנושאים לא נמצאו")
+    for index, ss_id in enumerate(payload.ids):
+        rows[ss_id].position = index
+    db.commit()
 
 
 @router.post("/", response_model=SubjectResponse, status_code=201)
@@ -49,7 +82,8 @@ def create_subject(payload: SubjectCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="שם הנושא לא יכול להיות ריק")
     if db.query(Subject).filter(Subject.name == name).first():
         raise HTTPException(status_code=409, detail="כבר קיים נושא בשם הזה")
-    subj = Subject(name=name)
+    max_pos = db.query(Subject).count()
+    subj = Subject(name=name, position=max_pos)
     db.add(subj)
     db.commit()
     db.refresh(subj)
@@ -101,7 +135,8 @@ def create_sub_subject(subject_id: int, payload: SubSubjectCreate, db: Session =
         raise HTTPException(status_code=400, detail="שם תת-הנושא לא יכול להיות ריק")
     if db.query(SubSubject).filter(SubSubject.subject_id == subject_id, SubSubject.name == name).first():
         raise HTTPException(status_code=409, detail="כבר קיים תת-נושא בשם הזה תחת הנושא")
-    ss = SubSubject(subject_id=subject_id, name=name)
+    max_pos = db.query(SubSubject).filter(SubSubject.subject_id == subject_id).count()
+    ss = SubSubject(subject_id=subject_id, name=name, position=max_pos)
     db.add(ss)
     db.commit()
     db.refresh(ss)

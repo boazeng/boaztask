@@ -25,13 +25,14 @@ class Subject(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(200), nullable=False, unique=True)
+    position = Column(Integer, nullable=False, default=0, server_default="0")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     sub_subjects = relationship(
         "SubSubject",
         back_populates="subject",
         cascade="all, delete-orphan",
-        order_by="SubSubject.name",
+        order_by="(SubSubject.position, SubSubject.name)",
     )
 
 
@@ -42,6 +43,7 @@ class SubSubject(Base):
     id = Column(Integer, primary_key=True, index=True)
     subject_id = Column(Integer, ForeignKey("subjects.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String(200), nullable=False)
+    position = Column(Integer, nullable=False, default=0, server_default="0")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     subject = relationship("Subject", back_populates="sub_subjects")

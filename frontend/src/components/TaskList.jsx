@@ -100,7 +100,7 @@ function TaskRow({ task, onView, onEdit, onDelete, onToggleImmediate }) {
   )
 }
 
-export default function TaskList({ tasks, onEdit, onDelete, onView, onToggleImmediate, sort = [], onSort, onClearSort }) {
+export default function TaskList({ tasks, subjects = [], onEdit, onDelete, onView, onToggleImmediate, sort = [], onSort, onClearSort }) {
   const [viewMode, setViewMode] = useState(() => {
     try { return localStorage.getItem(VIEW_KEY) || 'grouped' } catch { return 'grouped' }
   })
@@ -137,10 +137,27 @@ export default function TaskList({ tasks, onEdit, onDelete, onView, onToggleImme
       if (!inner.has(sub)) inner.set(sub, [])
       inner.get(sub).push(t)
     }
-    const sortedSubjects = [...map.keys()].sort((a, b) => a.localeCompare(b, 'he'))
+    const subjectOrder = new Map(subjects.map((s, i) => [s.name, i]))
+    const subSubjectOrder = new Map(
+      subjects.flatMap(s => s.sub_subjects.map((ss, i) => [`${s.name}|${ss.name}`, i]))
+    )
+    const sortSubjects = (a, b) => {
+      const ia = subjectOrder.has(a) ? subjectOrder.get(a) : Number.MAX_SAFE_INTEGER
+      const ib = subjectOrder.has(b) ? subjectOrder.get(b) : Number.MAX_SAFE_INTEGER
+      if (ia !== ib) return ia - ib
+      return a.localeCompare(b, 'he')
+    }
+    const sortSubsFor = (subjName) => (a, b) => {
+      const ka = `${subjName}|${a}`; const kb = `${subjName}|${b}`
+      const ia = subSubjectOrder.has(ka) ? subSubjectOrder.get(ka) : Number.MAX_SAFE_INTEGER
+      const ib = subSubjectOrder.has(kb) ? subSubjectOrder.get(kb) : Number.MAX_SAFE_INTEGER
+      if (ia !== ib) return ia - ib
+      return a.localeCompare(b, 'he')
+    }
+    const sortedSubjects = [...map.keys()].sort(sortSubjects)
     return sortedSubjects.map(subjName => {
       const inner = map.get(subjName)
-      const sortedSubs = [...inner.keys()].sort((a, b) => a.localeCompare(b, 'he'))
+      const sortedSubs = [...inner.keys()].sort(sortSubsFor(subjName))
       const subBuckets = sortedSubs.map(sName => ({
         name: sName,
         tasks: inner.get(sName),
@@ -148,7 +165,7 @@ export default function TaskList({ tasks, onEdit, onDelete, onView, onToggleImme
       const total = subBuckets.reduce((sum, b) => sum + b.tasks.length, 0)
       return { name: subjName, subBuckets, total }
     })
-  }, [tasks])
+  }, [tasks, subjects])
 
   const collapseAll = () => {
     const all = new Set()
