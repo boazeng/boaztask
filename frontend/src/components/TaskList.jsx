@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { HiPencil, HiTrash, HiEye, HiArrowSmUp, HiArrowSmDown, HiX, HiChevronDown, HiChevronLeft, HiViewList, HiViewGrid } from 'react-icons/hi'
+import { HiPencil, HiTrash, HiEye, HiArrowSmUp, HiArrowSmDown, HiX, HiChevronDown, HiChevronLeft, HiViewList, HiViewGrid, HiPlus, HiMinus } from 'react-icons/hi'
 
 const URGENCY_BADGE = {
   'דחוף': 'bg-[rgba(214,74,46,0.12)] text-accent border border-[rgba(214,74,46,0.25)]',
@@ -100,7 +100,7 @@ function TaskRow({ task, onView, onEdit, onDelete, onToggleImmediate }) {
   )
 }
 
-const VALID_VIEW_MODES = new Set(['flat', 'subject', 'grouped'])
+const VALID_VIEW_MODES = new Set(['flat', 'grouped'])
 
 export default function TaskList({ tasks, subjects = [], onEdit, onDelete, onView, onToggleImmediate, sort = [], onSort, onClearSort }) {
   const [viewMode, setViewMode] = useState(() => {
@@ -176,13 +176,57 @@ export default function TaskList({ tasks, subjects = [], onEdit, onDelete, onVie
     const all = new Set()
     for (const g of groups) {
       all.add(`s:${g.name}`)
-      if (viewMode === 'grouped') {
-        for (const b of g.subBuckets) all.add(`ss:${g.name}|${b.name}`)
-      }
+      for (const b of g.subBuckets) all.add(`ss:${g.name}|${b.name}`)
     }
     setCollapsed(all)
   }
   const expandAll = () => setCollapsed(new Set())
+
+  // Progressively expand one level: subjects first, then sub-subjects.
+  const expandOneLevel = () => {
+    const subjectKeys = groups.map(g => `s:${g.name}`)
+    const anySubjectClosed = subjectKeys.some(k => collapsed.has(k))
+    if (anySubjectClosed) {
+      setCollapsed(prev => {
+        const next = new Set(prev)
+        for (const k of subjectKeys) next.delete(k)
+        return next
+      })
+      return
+    }
+    const subKeys = groups.flatMap(g => g.subBuckets.map(b => `ss:${g.name}|${b.name}`))
+    const anySubClosed = subKeys.some(k => collapsed.has(k))
+    if (anySubClosed) {
+      setCollapsed(prev => {
+        const next = new Set(prev)
+        for (const k of subKeys) next.delete(k)
+        return next
+      })
+    }
+  }
+
+  // Progressively collapse one level: sub-subjects first, then subjects.
+  const collapseOneLevel = () => {
+    const subKeys = groups.flatMap(g => g.subBuckets.map(b => `ss:${g.name}|${b.name}`))
+    const anySubOpen = subKeys.some(k => !collapsed.has(k))
+    if (anySubOpen) {
+      setCollapsed(prev => {
+        const next = new Set(prev)
+        for (const k of subKeys) next.add(k)
+        return next
+      })
+      return
+    }
+    const subjectKeys = groups.map(g => `s:${g.name}`)
+    const anySubjectOpen = subjectKeys.some(k => !collapsed.has(k))
+    if (anySubjectOpen) {
+      setCollapsed(prev => {
+        const next = new Set(prev)
+        for (const k of subjectKeys) next.add(k)
+        return next
+      })
+    }
+  }
 
   if (tasks.length === 0) {
     return (
@@ -201,7 +245,32 @@ export default function TaskList({ tasks, subjects = [], onEdit, onDelete, onVie
   return (
     <div className="bg-cream-white rounded-2xl border border-warm-border overflow-hidden shadow-sm">
       <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 bg-[rgba(31,58,95,0.04)] border-b border-warm-border text-sm">
-        <div className="inline-flex rounded-full border border-warm-border bg-cream-white p-1">
+        <div className="inline-flex items-center rounded-full border border-warm-border bg-cream-white p-1 gap-1">
+          <button
+            onClick={() => setViewMode('grouped')}
+            className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold transition-colors ${viewMode === 'grouped' ? 'bg-primary text-cream-text' : 'text-taupe hover:text-primary'}`}
+            title="קיבוץ לפי נושא ותת-נושא"
+          >
+            <HiViewList size={14} /> מקובץ
+          </button>
+
+          <button
+            onClick={expandOneLevel}
+            disabled={viewMode === 'flat'}
+            className="p-1 rounded-full text-taupe hover:text-primary hover:bg-primary-soft disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-taupe transition-colors"
+            title="פתח רמה אחת"
+          >
+            <HiPlus size={14} />
+          </button>
+          <button
+            onClick={collapseOneLevel}
+            disabled={viewMode === 'flat'}
+            className="p-1 rounded-full text-taupe hover:text-primary hover:bg-primary-soft disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-taupe transition-colors"
+            title="סגור רמה אחת"
+          >
+            <HiMinus size={14} />
+          </button>
+
           <button
             onClick={() => setViewMode('flat')}
             className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold transition-colors ${viewMode === 'flat' ? 'bg-primary text-cream-text' : 'text-taupe hover:text-primary'}`}
@@ -209,23 +278,9 @@ export default function TaskList({ tasks, subjects = [], onEdit, onDelete, onVie
           >
             <HiViewGrid size={14} /> שטוח
           </button>
-          <button
-            onClick={() => setViewMode('subject')}
-            className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold transition-colors ${viewMode === 'subject' ? 'bg-primary text-cream-text' : 'text-taupe hover:text-primary'}`}
-            title="קיבוץ לפי נושא ראשי בלבד"
-          >
-            <HiViewList size={14} /> נושא
-          </button>
-          <button
-            onClick={() => setViewMode('grouped')}
-            className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold transition-colors ${viewMode === 'grouped' ? 'bg-primary text-cream-text' : 'text-taupe hover:text-primary'}`}
-            title="קיבוץ לפי נושא ותת-נושא"
-          >
-            <HiViewList size={14} /> נושא + תת
-          </button>
         </div>
 
-        {viewMode !== 'flat' && (
+        {viewMode === 'grouped' && (
           <>
             <button onClick={expandAll} className="text-taupe hover:text-primary transition-colors text-xs">פתח הכל</button>
             <span className="text-taupe/50">·</span>
@@ -286,31 +341,6 @@ export default function TaskList({ tasks, subjects = [], onEdit, onDelete, onVie
               <TaskRow key={task.id} task={task} onView={onView} onEdit={onEdit} onDelete={onDelete} onToggleImmediate={onToggleImmediate} />
             ))}
 
-            {viewMode === 'subject' && groups.map(group => {
-              const subjKey = `s:${group.name}`
-              const subjOpen = !collapsed.has(subjKey)
-              const subjectTasks = group.subBuckets.flatMap(b => b.tasks)
-              return (
-                <FragmentRows key={subjKey}>
-                  <tr className="bg-[rgba(31,58,95,0.08)] border-b border-warm-border">
-                    <td colSpan={TOTAL_COLS} className="px-3 py-2.5">
-                      <button
-                        onClick={() => toggleKey(subjKey)}
-                        className="w-full flex items-center gap-2 text-right text-warm-ink font-bold"
-                      >
-                        {subjOpen ? <HiChevronDown size={20} className="text-primary" /> : <HiChevronLeft size={20} className="text-primary" />}
-                        <span className="text-base">{group.name}</span>
-                        <span className="tact-badge tact-badge-on">{group.total} מטלות</span>
-                      </button>
-                    </td>
-                  </tr>
-                  {subjOpen && subjectTasks.map(task => (
-                    <TaskRow key={task.id} task={task} onView={onView} onEdit={onEdit} onDelete={onDelete} onToggleImmediate={onToggleImmediate} />
-                  ))}
-                </FragmentRows>
-              )
-            })}
-
             {viewMode === 'grouped' && groups.map(group => {
               const subjKey = `s:${group.name}`
               const subjOpen = !collapsed.has(subjKey)
@@ -365,27 +395,6 @@ export default function TaskList({ tasks, subjects = [], onEdit, onDelete, onVie
         {viewMode === 'flat' && tasks.map(task => (
           <MobileCard key={task.id} task={task} onView={onView} onEdit={onEdit} onDelete={onDelete} onToggleImmediate={onToggleImmediate} />
         ))}
-
-        {viewMode === 'subject' && groups.map(group => {
-          const subjKey = `s:${group.name}`
-          const subjOpen = !collapsed.has(subjKey)
-          const subjectTasks = group.subBuckets.flatMap(b => b.tasks)
-          return (
-            <div key={subjKey}>
-              <button
-                onClick={() => toggleKey(subjKey)}
-                className="w-full flex items-center gap-2 px-4 py-2.5 bg-[rgba(31,58,95,0.08)] text-right text-warm-ink font-bold"
-              >
-                {subjOpen ? <HiChevronDown size={18} className="text-primary" /> : <HiChevronLeft size={18} className="text-primary" />}
-                <span className="flex-1">{group.name}</span>
-                <span className="tact-badge tact-badge-on">{group.total}</span>
-              </button>
-              {subjOpen && subjectTasks.map(task => (
-                <MobileCard key={task.id} task={task} onView={onView} onEdit={onEdit} onDelete={onDelete} onToggleImmediate={onToggleImmediate} />
-              ))}
-            </div>
-          )
-        })}
 
         {viewMode === 'grouped' && groups.map(group => {
           const subjKey = `s:${group.name}`
