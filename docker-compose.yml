@@ -35,18 +35,11 @@ services:
     networks:
       - boaztask-net
 
-  telegram-bot:
-    build: ./backend
-    container_name: boaztask-telegram
-    restart: unless-stopped
-    command: python run_bot.py
-    environment:
-      DATABASE_URL: postgresql://boaztask:${DB_PASSWORD:-boaztask_secure_2024}@db:5432/boaztask
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
-    depends_on:
-      - db
-    networks:
-      - boaztask-net
+  # telegram-bot service intentionally removed — bridging is now done by the
+  # external "ran" agent via /api with bearer tokens. The bot code under
+  # backend/app/telegram_bot.py + run_bot.py is kept dormant for reference,
+  # and TELEGRAM_BOT_TOKEN in .env stays put so we can revive the service
+  # later by restoring this block (and the bot-only deps in requirements.txt).
 
   frontend:
     build: ./frontend
