@@ -195,6 +195,17 @@ export default function App() {
     }
   }
 
+  const handleInlineUpdate = async (id, partial) => {
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, ...partial } : t))
+    try {
+      await api.updateTask(id, partial)
+      loadStats()
+    } catch {
+      toast.error('שגיאה בעדכון')
+      loadTasks()
+    }
+  }
+
   const handleEdit = (task) => {
     setEditingTask(task)
     setShowForm(true)
@@ -253,6 +264,7 @@ export default function App() {
               onDelete={handleDelete}
               onView={setViewingTask}
               onToggleImmediate={handleToggleImmediate}
+              onInlineUpdate={handleInlineUpdate}
               sort={sort}
               onSort={handleSort}
               onClearSort={() => setSort([])}

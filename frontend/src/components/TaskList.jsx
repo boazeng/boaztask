@@ -15,6 +15,9 @@ const STATUS_BADGE_CLASS = {
   'בוטל': 'tact-badge-muted',
 }
 
+const URGENCY_OPTIONS = ['דחוף', 'גבוה', 'בינוני', 'נמוך']
+const STATUS_OPTIONS = ['חדש', 'בטיפול', 'הושלם', 'בוטל']
+
 const COLUMNS = [
   { key: 'immediate', label: 'מיידי', align: 'center', sortable: true },
   { key: 'subject', label: 'נושא', sortable: true },
@@ -34,6 +37,9 @@ const NO_SUB = 'ללא תת-נושא'
 
 const DEPTH_KEY = 'boaztask:groupingDepth'
 const MAX_DEPTH = 2 // 0 = flat, 1 = subject only, 2 = subject + sub-subject
+
+const EDITABLE_CELL_HOVER = 'hover:bg-primary-soft hover:ring-1 hover:ring-primary/20 rounded transition-colors cursor-text'
+const INLINE_INPUT_CLASS = 'w-full bg-cream-white border border-primary rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary-soft'
 
 function readInitialDepth() {
   try {
@@ -56,64 +62,46 @@ function SortIndicator({ sort, field }) {
   )
 }
 
-function TaskRow({ task, onView, onEdit, onDelete, onToggleImmediate }) {
-  return (
-    <tr className="border-b border-warm-border/60 hover:bg-cream transition-colors">
-      <td className="px-4 py-3 text-center">
-        <input
-          type="checkbox"
-          checked={task.immediate || false}
-          onChange={(e) => onToggleImmediate?.(task.id, e.target.checked)}
-          className="w-5 h-5 rounded border-2 border-warm-border text-primary cursor-pointer focus:ring-2 focus:ring-primary/30"
-        />
-      </td>
-      <td className="px-4 py-3">
-        <button onClick={() => onView(task)} className="text-warm-ink hover:text-primary font-semibold transition-colors text-right">
-          {task.subject}
-        </button>
-      </td>
-      <td className="px-4 py-3 text-taupe">{task.sub_subject || '—'}</td>
-      <td className="px-4 py-3 text-taupe min-w-[260px] max-w-[400px]">
-        <span className="line-clamp-2">{task.description || '—'}</span>
-      </td>
-      <td className="px-4 py-3">
-        <span className={`text-xs font-bold px-3 py-1 rounded-full ${URGENCY_BADGE[task.urgency] || ''}`}>
-          {task.urgency}
-        </span>
-      </td>
-      <td className="px-4 py-3">
-        <span className={`tact-badge ${STATUS_BADGE_CLASS[task.status] || 'tact-badge-muted'}`}>
-          {task.status}
-        </span>
-      </td>
-      <td className="px-4 py-3 text-taupe">{task.category1 || '—'}</td>
-      <td className="px-4 py-3 text-taupe">{task.category2 || '—'}</td>
-      <td className="px-4 py-3 text-taupe whitespace-nowrap font-en text-sm">
-        {task.created_at ? new Date(task.created_at).toLocaleDateString('he-IL') : '—'}
-      </td>
-      <td className="px-4 py-3">
-        <div className="flex items-center justify-center gap-1">
-          <button onClick={() => onView(task)} className="p-2 text-taupe hover:text-primary hover:bg-primary-soft rounded-lg transition-colors" title="צפייה">
-            <HiEye size={18} />
-          </button>
-          <button onClick={() => onEdit(task)} className="p-2 text-taupe hover:text-warn hover:bg-[rgba(201,146,56,0.14)] rounded-lg transition-colors" title="עריכה">
-            <HiPencil size={18} />
-          </button>
-          <button onClick={() => onDelete(task.id)} className="p-2 text-taupe hover:text-accent hover:bg-[rgba(214,74,46,0.12)] rounded-lg transition-colors" title="מחיקה">
-            <HiTrash size={18} />
-          </button>
-        </div>
-      </td>
-    </tr>
-  )
-}
-
-export default function TaskList({ tasks, subjects = [], onEdit, onDelete, onView, onToggleImmediate, sort = [], onSort, onClearSort }) {
+export default function TaskList({ tasks, subjects = [], onEdit, onDelete, onView, onToggleImmediate, onInlineUpdate, sort = [], onSort, onClearSort }) {
   const [depth, setDepth] = useState(readInitialDepth)
+  const [editing, setEditing] = useState(null) // { taskId, field, draft }
 
   useEffect(() => {
     try { localStorage.setItem(DEPTH_KEY, String(depth)) } catch {}
   }, [depth])
+
+  const taskById = useMemo(() => new Map(tasks.map(t => [t.id, t])), [tasks])
+
+  const startEdit = (taskId, field, initialValue) => {
+    if (editing) commitEdit()
+    setEditing({ taskId, field, draft: initialValue ?? '' })
+  }
+
+  const updateDraft = (value) => {
+    setEditing(prev => prev ? { ...prev, draft: value } : null)
+  }
+
+  const cancelEdit = () => setEditing(null)
+
+  const commitEdit = () => {
+    if (!editing) return
+    const { taskId, field, draft } = editing
+    setEditing(null)
+    const task = taskById.get(taskId)
+    if (!task) return
+    if ((task[field] ?? '') === draft) return // no change
+    onInlineUpdate?.(taskId, { [field]: draft })
+  }
+
+  const commitWithValue = (taskId, field, value) => {
+    setEditing(null)
+    const task = taskById.get(taskId)
+    if (!task) return
+    if ((task[field] ?? '') === value) return
+    onInlineUpdate?.(taskId, { [field]: value })
+  }
+
+  const isEditing = (taskId, field) => editing?.taskId === taskId && editing?.field === field
 
   const groups = useMemo(() => {
     const map = new Map()
@@ -171,6 +159,157 @@ export default function TaskList({ tasks, subjects = [], onEdit, onDelete, onVie
     if (!sortable) return
     onSort?.(key, e.shiftKey)
   }
+
+  // Renderers for the editable cells -----------------------------------
+  const renderUrgencyCell = (task) => {
+    if (isEditing(task.id, 'urgency')) {
+      return (
+        <select
+          autoFocus
+          defaultValue={editing.draft}
+          onChange={(e) => commitWithValue(task.id, 'urgency', e.target.value)}
+          onBlur={cancelEdit}
+          onKeyDown={(e) => { if (e.key === 'Escape') cancelEdit() }}
+          className={INLINE_INPUT_CLASS}
+        >
+          {URGENCY_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+      )
+    }
+    return (
+      <button
+        onClick={() => startEdit(task.id, 'urgency', task.urgency || '')}
+        className={`text-xs font-bold px-3 py-1 rounded-full ${URGENCY_BADGE[task.urgency] || ''} hover:ring-2 hover:ring-primary/30 transition-shadow`}
+        title="לחץ כדי לערוך"
+      >
+        {task.urgency || '—'}
+      </button>
+    )
+  }
+
+  const renderStatusCell = (task) => {
+    if (isEditing(task.id, 'status')) {
+      return (
+        <select
+          autoFocus
+          defaultValue={editing.draft}
+          onChange={(e) => commitWithValue(task.id, 'status', e.target.value)}
+          onBlur={cancelEdit}
+          onKeyDown={(e) => { if (e.key === 'Escape') cancelEdit() }}
+          className={INLINE_INPUT_CLASS}
+        >
+          {STATUS_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+      )
+    }
+    return (
+      <button
+        onClick={() => startEdit(task.id, 'status', task.status || '')}
+        className={`tact-badge ${STATUS_BADGE_CLASS[task.status] || 'tact-badge-muted'} hover:ring-2 hover:ring-primary/30 transition-shadow`}
+        title="לחץ כדי לערוך"
+      >
+        {task.status || '—'}
+      </button>
+    )
+  }
+
+  const renderTextCell = (task, field, displayClass = 'text-taupe') => {
+    if (isEditing(task.id, field)) {
+      return (
+        <input
+          type="text"
+          autoFocus
+          value={editing.draft}
+          onChange={(e) => updateDraft(e.target.value)}
+          onBlur={commitEdit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { e.preventDefault(); commitEdit() }
+            if (e.key === 'Escape') cancelEdit()
+          }}
+          className={INLINE_INPUT_CLASS}
+        />
+      )
+    }
+    return (
+      <button
+        onClick={() => startEdit(task.id, field, task[field] || '')}
+        className={`w-full text-right -mx-1 px-1 py-1 ${displayClass} ${EDITABLE_CELL_HOVER}`}
+        title="לחץ כדי לערוך"
+      >
+        {task[field] || '—'}
+      </button>
+    )
+  }
+
+  const renderDescriptionCell = (task) => {
+    if (isEditing(task.id, 'description')) {
+      return (
+        <textarea
+          autoFocus
+          rows={2}
+          value={editing.draft}
+          onChange={(e) => updateDraft(e.target.value)}
+          onBlur={commitEdit}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') cancelEdit()
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); commitEdit() }
+          }}
+          className={`${INLINE_INPUT_CLASS} resize-none`}
+        />
+      )
+    }
+    return (
+      <button
+        onClick={() => startEdit(task.id, 'description', task.description || '')}
+        className={`w-full text-right -mx-1 px-1 py-1 text-taupe ${EDITABLE_CELL_HOVER}`}
+        title="לחץ כדי לערוך · Ctrl+Enter לשמירה"
+      >
+        <span className="line-clamp-2">{task.description || '—'}</span>
+      </button>
+    )
+  }
+
+  const renderTaskRow = (task) => (
+    <tr key={task.id} className="border-b border-warm-border/60 hover:bg-cream/60 transition-colors">
+      <td className="px-4 py-3 text-center">
+        <input
+          type="checkbox"
+          checked={task.immediate || false}
+          onChange={(e) => onToggleImmediate?.(task.id, e.target.checked)}
+          className="w-5 h-5 rounded border-2 border-warm-border text-primary cursor-pointer focus:ring-2 focus:ring-primary/30"
+        />
+      </td>
+      <td className="px-4 py-3">
+        <button onClick={() => onView(task)} className="text-warm-ink hover:text-primary font-semibold transition-colors text-right">
+          {task.subject}
+        </button>
+      </td>
+      <td className="px-4 py-3 text-taupe">{task.sub_subject || '—'}</td>
+      <td className="px-4 py-3 min-w-[260px] max-w-[400px]">
+        {renderDescriptionCell(task)}
+      </td>
+      <td className="px-4 py-3">{renderUrgencyCell(task)}</td>
+      <td className="px-4 py-3">{renderStatusCell(task)}</td>
+      <td className="px-4 py-3">{renderTextCell(task, 'category1')}</td>
+      <td className="px-4 py-3">{renderTextCell(task, 'category2')}</td>
+      <td className="px-4 py-3 text-taupe whitespace-nowrap font-en text-sm">
+        {task.created_at ? new Date(task.created_at).toLocaleDateString('he-IL') : '—'}
+      </td>
+      <td className="px-4 py-3">
+        <div className="flex items-center justify-center gap-1">
+          <button onClick={() => onView(task)} className="p-2 text-taupe hover:text-primary hover:bg-primary-soft rounded-lg transition-colors" title="צפייה">
+            <HiEye size={18} />
+          </button>
+          <button onClick={() => onEdit(task)} className="p-2 text-taupe hover:text-warn hover:bg-[rgba(201,146,56,0.14)] rounded-lg transition-colors" title="עריכה מלאה">
+            <HiPencil size={18} />
+          </button>
+          <button onClick={() => onDelete(task.id)} className="p-2 text-taupe hover:text-accent hover:bg-[rgba(214,74,46,0.12)] rounded-lg transition-colors" title="מחיקה">
+            <HiTrash size={18} />
+          </button>
+        </div>
+      </td>
+    </tr>
+  )
 
   return (
     <div className="bg-cream-white rounded-2xl border border-warm-border overflow-hidden shadow-sm">
@@ -234,7 +373,7 @@ export default function TaskList({ tasks, subjects = [], onEdit, onDelete, onVie
           </>
         )}
 
-        <span className="text-taupe/70 text-xs mr-auto hidden lg:inline">טיפ: Shift+לחיצה על כותרת מוסיפה רמת מיון</span>
+        <span className="text-taupe/70 text-xs mr-auto hidden lg:inline">טיפ: לחץ על תא כדי לערוך · Shift+לחיצה על כותרת מוסיפה רמת מיון</span>
       </div>
 
       {/* Desktop table */}
@@ -259,9 +398,7 @@ export default function TaskList({ tasks, subjects = [], onEdit, onDelete, onVie
             </tr>
           </thead>
           <tbody>
-            {depth === 0 && tasks.map(task => (
-              <TaskRow key={task.id} task={task} onView={onView} onEdit={onEdit} onDelete={onDelete} onToggleImmediate={onToggleImmediate} />
-            ))}
+            {depth === 0 && tasks.map(renderTaskRow)}
 
             {depth === 1 && groups.map(group => {
               const subjectTasks = group.subBuckets.flatMap(b => b.tasks)
@@ -275,9 +412,7 @@ export default function TaskList({ tasks, subjects = [], onEdit, onDelete, onVie
                       </div>
                     </td>
                   </tr>
-                  {subjectTasks.map(task => (
-                    <TaskRow key={task.id} task={task} onView={onView} onEdit={onEdit} onDelete={onDelete} onToggleImmediate={onToggleImmediate} />
-                  ))}
+                  {subjectTasks.map(renderTaskRow)}
                 </FragmentRows>
               )
             })}
@@ -303,9 +438,7 @@ export default function TaskList({ tasks, subjects = [], onEdit, onDelete, onVie
                         </div>
                       </td>
                     </tr>
-                    {bucket.tasks.map(task => (
-                      <TaskRow key={task.id} task={task} onView={onView} onEdit={onEdit} onDelete={onDelete} onToggleImmediate={onToggleImmediate} />
-                    ))}
+                    {bucket.tasks.map(renderTaskRow)}
                   </FragmentRows>
                 ))}
               </FragmentRows>
