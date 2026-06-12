@@ -62,7 +62,7 @@ function SortIndicator({ sort, field }) {
   )
 }
 
-export default function TaskList({ tasks, subjects = [], onEdit, onDelete, onView, onToggleImmediate, onInlineUpdate, sort = [], onSort, onClearSort }) {
+export default function TaskList({ tasks, subjects = [], onEdit, onDelete, onView, onToggleImmediate, onInlineUpdate, onDuplicate, sort = [], onSort, onClearSort }) {
   const [depth, setDepth] = useState(readInitialDepth)
   const [editing, setEditing] = useState(null) // { taskId, field, draft }
 
@@ -297,6 +297,9 @@ export default function TaskList({ tasks, subjects = [], onEdit, onDelete, onVie
       </td>
       <td className="px-4 py-3">
         <div className="flex items-center justify-center gap-1">
+          <button onClick={() => onDuplicate?.(task)} className="p-2 text-taupe hover:text-pos hover:bg-pos/10 rounded-lg transition-colors" title="הוסף שורה חדשה עם אותו נושא, תת-נושא, דחיפות, סטטוס ואחראי">
+            <HiPlus size={18} />
+          </button>
           <button onClick={() => onView(task)} className="p-2 text-taupe hover:text-primary hover:bg-primary-soft rounded-lg transition-colors" title="צפייה">
             <HiEye size={18} />
           </button>

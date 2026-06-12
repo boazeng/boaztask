@@ -206,6 +206,26 @@ export default function App() {
     }
   }
 
+  const handleDuplicate = async (sourceTask) => {
+    try {
+      await api.createTask({
+        subject: sourceTask.subject || '',
+        sub_subject: sourceTask.sub_subject || '',
+        description: '',
+        urgency: sourceTask.urgency || 'בינוני',
+        category1: sourceTask.category1 || '',
+        category2: '',
+        status: sourceTask.status || 'חדש',
+        immediate: false,
+      })
+      toast.success('שורה חדשה נוצרה')
+      loadTasks()
+      loadStats()
+    } catch {
+      toast.error('שגיאה ביצירת שורה')
+    }
+  }
+
   const handleEdit = (task) => {
     setEditingTask(task)
     setShowForm(true)
@@ -265,6 +285,7 @@ export default function App() {
               onView={setViewingTask}
               onToggleImmediate={handleToggleImmediate}
               onInlineUpdate={handleInlineUpdate}
+              onDuplicate={handleDuplicate}
               sort={sort}
               onSort={handleSort}
               onClearSort={() => setSort([])}
