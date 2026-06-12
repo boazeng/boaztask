@@ -100,9 +100,14 @@ function TaskRow({ task, onView, onEdit, onDelete, onToggleImmediate }) {
   )
 }
 
+const VALID_VIEW_MODES = new Set(['flat', 'subject', 'grouped'])
+
 export default function TaskList({ tasks, subjects = [], onEdit, onDelete, onView, onToggleImmediate, sort = [], onSort, onClearSort }) {
   const [viewMode, setViewMode] = useState(() => {
-    try { return localStorage.getItem(VIEW_KEY) || 'grouped' } catch { return 'grouped' }
+    try {
+      const stored = localStorage.getItem(VIEW_KEY)
+      return VALID_VIEW_MODES.has(stored) ? stored : 'grouped'
+    } catch { return 'grouped' }
   })
   const [collapsed, setCollapsed] = useState(() => {
     try {
@@ -171,7 +176,9 @@ export default function TaskList({ tasks, subjects = [], onEdit, onDelete, onVie
     const all = new Set()
     for (const g of groups) {
       all.add(`s:${g.name}`)
-      for (const b of g.subBuckets) all.add(`ss:${g.name}|${b.name}`)
+      if (viewMode === 'grouped') {
+        for (const b of g.subBuckets) all.add(`ss:${g.name}|${b.name}`)
+      }
     }
     setCollapsed(all)
   }
@@ -196,20 +203,29 @@ export default function TaskList({ tasks, subjects = [], onEdit, onDelete, onVie
       <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 bg-[rgba(31,58,95,0.04)] border-b border-warm-border text-sm">
         <div className="inline-flex rounded-full border border-warm-border bg-cream-white p-1">
           <button
-            onClick={() => setViewMode('grouped')}
-            className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold transition-colors ${viewMode === 'grouped' ? 'bg-primary text-cream-text' : 'text-taupe hover:text-primary'}`}
-          >
-            <HiViewList size={14} /> מקובץ
-          </button>
-          <button
             onClick={() => setViewMode('flat')}
             className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold transition-colors ${viewMode === 'flat' ? 'bg-primary text-cream-text' : 'text-taupe hover:text-primary'}`}
+            title="ללא קיבוץ"
           >
             <HiViewGrid size={14} /> שטוח
           </button>
+          <button
+            onClick={() => setViewMode('subject')}
+            className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold transition-colors ${viewMode === 'subject' ? 'bg-primary text-cream-text' : 'text-taupe hover:text-primary'}`}
+            title="קיבוץ לפי נושא ראשי בלבד"
+          >
+            <HiViewList size={14} /> נושא
+          </button>
+          <button
+            onClick={() => setViewMode('grouped')}
+            className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold transition-colors ${viewMode === 'grouped' ? 'bg-primary text-cream-text' : 'text-taupe hover:text-primary'}`}
+            title="קיבוץ לפי נושא ותת-נושא"
+          >
+            <HiViewList size={14} /> נושא + תת
+          </button>
         </div>
 
-        {viewMode === 'grouped' && (
+        {viewMode !== 'flat' && (
           <>
             <button onClick={expandAll} className="text-taupe hover:text-primary transition-colors text-xs">פתח הכל</button>
             <span className="text-taupe/50">·</span>
@@ -270,6 +286,31 @@ export default function TaskList({ tasks, subjects = [], onEdit, onDelete, onVie
               <TaskRow key={task.id} task={task} onView={onView} onEdit={onEdit} onDelete={onDelete} onToggleImmediate={onToggleImmediate} />
             ))}
 
+            {viewMode === 'subject' && groups.map(group => {
+              const subjKey = `s:${group.name}`
+              const subjOpen = !collapsed.has(subjKey)
+              const subjectTasks = group.subBuckets.flatMap(b => b.tasks)
+              return (
+                <FragmentRows key={subjKey}>
+                  <tr className="bg-[rgba(31,58,95,0.08)] border-b border-warm-border">
+                    <td colSpan={TOTAL_COLS} className="px-3 py-2.5">
+                      <button
+                        onClick={() => toggleKey(subjKey)}
+                        className="w-full flex items-center gap-2 text-right text-warm-ink font-bold"
+                      >
+                        {subjOpen ? <HiChevronDown size={20} className="text-primary" /> : <HiChevronLeft size={20} className="text-primary" />}
+                        <span className="text-base">{group.name}</span>
+                        <span className="tact-badge tact-badge-on">{group.total} מטלות</span>
+                      </button>
+                    </td>
+                  </tr>
+                  {subjOpen && subjectTasks.map(task => (
+                    <TaskRow key={task.id} task={task} onView={onView} onEdit={onEdit} onDelete={onDelete} onToggleImmediate={onToggleImmediate} />
+                  ))}
+                </FragmentRows>
+              )
+            })}
+
             {viewMode === 'grouped' && groups.map(group => {
               const subjKey = `s:${group.name}`
               const subjOpen = !collapsed.has(subjKey)
@@ -324,6 +365,27 @@ export default function TaskList({ tasks, subjects = [], onEdit, onDelete, onVie
         {viewMode === 'flat' && tasks.map(task => (
           <MobileCard key={task.id} task={task} onView={onView} onEdit={onEdit} onDelete={onDelete} onToggleImmediate={onToggleImmediate} />
         ))}
+
+        {viewMode === 'subject' && groups.map(group => {
+          const subjKey = `s:${group.name}`
+          const subjOpen = !collapsed.has(subjKey)
+          const subjectTasks = group.subBuckets.flatMap(b => b.tasks)
+          return (
+            <div key={subjKey}>
+              <button
+                onClick={() => toggleKey(subjKey)}
+                className="w-full flex items-center gap-2 px-4 py-2.5 bg-[rgba(31,58,95,0.08)] text-right text-warm-ink font-bold"
+              >
+                {subjOpen ? <HiChevronDown size={18} className="text-primary" /> : <HiChevronLeft size={18} className="text-primary" />}
+                <span className="flex-1">{group.name}</span>
+                <span className="tact-badge tact-badge-on">{group.total}</span>
+              </button>
+              {subjOpen && subjectTasks.map(task => (
+                <MobileCard key={task.id} task={task} onView={onView} onEdit={onEdit} onDelete={onDelete} onToggleImmediate={onToggleImmediate} />
+              ))}
+            </div>
+          )
+        })}
 
         {viewMode === 'grouped' && groups.map(group => {
           const subjKey = `s:${group.name}`
