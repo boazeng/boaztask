@@ -16,9 +16,12 @@ def list_tasks(
     category1: Optional[str] = None,
     category2: Optional[str] = None,
     search: Optional[str] = None,
+    is_agent_task: Optional[bool] = None,
     db: Session = Depends(get_db),
 ):
     query = db.query(Task)
+    # Default (no param) returns Boaz's tasks only; agent tasks are hidden unless explicitly requested.
+    query = query.filter(Task.is_agent_task == (is_agent_task is True))
     if status:
         query = query.filter(Task.status == status)
     if urgency:
@@ -46,14 +49,11 @@ def create_task(task: TaskCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/stats/summary")
-def get_stats(db: Session = Depends(get_db)):
-    total = db.query(Task).count()
-    by_status = {}
-    for s in TaskStatus:
-        by_status[s.value] = db.query(Task).filter(Task.status == s).count()
-    by_urgency = {}
-    for u in UrgencyLevel:
-        by_urgency[u.value] = db.query(Task).filter(Task.urgency == u).count()
+def get_stats(is_agent_task: Optional[bool] = None, db: Session = Depends(get_db)):
+    base = db.query(Task).filter(Task.is_agent_task == (is_agent_task is True))
+    total = base.count()
+    by_status = {s.value: base.filter(Task.status == s).count() for s in TaskStatus}
+    by_urgency = {u.value: base.filter(Task.urgency == u).count() for u in UrgencyLevel}
     return {"total": total, "by_status": by_status, "by_urgency": by_urgency}
 
 

@@ -74,6 +74,7 @@ class TaskCreate(BaseModel):
     category2: str = ""
     status: TaskStatus = TaskStatus.NEW
     immediate: bool = False
+    is_agent_task: bool = False
 
 
 class TaskUpdate(BaseModel):
@@ -85,6 +86,7 @@ class TaskUpdate(BaseModel):
     category2: Optional[str] = None
     status: Optional[TaskStatus] = None
     immediate: Optional[bool] = None
+    is_agent_task: Optional[bool] = None
 
 
 class TaskResponse(BaseModel):
@@ -97,6 +99,7 @@ class TaskResponse(BaseModel):
     category2: str
     status: TaskStatus
     immediate: bool
+    is_agent_task: bool
     created_at: datetime
     updated_at: datetime
 

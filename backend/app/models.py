@@ -78,5 +78,6 @@ class Task(Base):
     category2 = Column(String(100), default="")
     status = Column(SAEnum(TaskStatus), default=TaskStatus.NEW)
     immediate = Column(Boolean, default=False, nullable=False)
+    is_agent_task = Column(Boolean, default=False, nullable=False, server_default="false")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))

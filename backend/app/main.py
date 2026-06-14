@@ -23,6 +23,7 @@ def _ensure_position_columns():
     with engine.connect() as conn:
         conn.execute(text("ALTER TABLE subjects ADD COLUMN IF NOT EXISTS position INTEGER NOT NULL DEFAULT 0"))
         conn.execute(text("ALTER TABLE sub_subjects ADD COLUMN IF NOT EXISTS position INTEGER NOT NULL DEFAULT 0"))
+        conn.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS is_agent_task BOOLEAN NOT NULL DEFAULT FALSE"))
         conn.commit()
 
 
